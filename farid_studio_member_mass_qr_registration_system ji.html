@@ -1,0 +1,3051 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Farid Studio Multimedia — Sistem Kartu Member, QR Massal &amp; Presensi</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f4f7fa;
+      background-image: radial-gradient(at 0% 0%, rgba(0, 139, 163, 0.06) 0px, transparent 50%),
+                        radial-gradient(at 100% 0%, rgba(14, 165, 233, 0.05) 0px, transparent 50%);
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .cr80-card-shadow {
+      box-shadow: 0 20px 35px -12px rgba(15, 23, 42, 0.18), 0 4px 12px -2px rgba(15, 23, 42, 0.06);
+    }
+    .glass-header {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    @media print {
+      body * { visibility: hidden !important; }
+      #print-area, #print-area * { visibility: visible !important; }
+      #print-area {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        background: #fff !important;
+        display: block !important;
+      }
+      @page { size: A4 portrait; margin: 8mm; }
+    }
+  </style>
+</head>
+<body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-cyan-600 selection:text-white">
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm pointer-events-none"></div>
+
+  <!-- HEADER & NAVIGATION -->
+  <header class="glass-header border-b border-slate-200/90 sticky top-0 z-40 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between py-3.5 gap-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-3.5">
+            <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-cyan-600 via-teal-700 to-slate-900 text-white flex items-center justify-center shadow-md ring-2 ring-cyan-500/20">
+              <i class="fa-solid fa-camera-retro text-lg"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h1 class="text-base sm:text-lg font-black tracking-tight text-slate-900 leading-none">FARID STUDIO</h1>
+                <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md bg-cyan-50 border border-cyan-200/80 text-[10px] font-extrabold uppercase tracking-wider text-cyan-800">MULTIMEDIA</span>
+              </div>
+              <p class="text-[11px] font-medium text-slate-500 mt-1">Sistem Keanggotaan CR80, Aktivasi QR Massal &amp; Presensi Studio</p>
+            </div>
+          </div>
+          <div id="admin-status-badge" class="lg:hidden">
+            <button onclick="openPinModal('admin')" id="mobile-admin-btn" class="px-3.5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold shadow-sm">
+              <i class="fa-solid fa-lock mr-1"></i> Admin
+            </button>
+          </div>
+        </div>
+
+        <nav class="flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200/70 overflow-x-auto">
+          <button onclick="switchTab('mass-qr')" id="nav-mass-qr" class="nav-btn px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-cyan-600 text-white shadow-sm whitespace-nowrap">
+            <i class="fa-solid fa-qrcode"></i>
+            <span>1. QR Massal</span>
+          </button>
+          <button onclick="switchTab('register')" id="nav-register" class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap">
+            <i class="fa-solid fa-id-card"></i>
+            <span>2. Form Daftar</span>
+          </button>
+          <button onclick="switchTab('portal')" id="nav-portal" class="nav-btn px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <span>3. Cek Kartu</span>
+          </button>
+          <button onclick="openAdminTab('admin')" id="nav-admin" class="nav-btn admin-only-nav hidden px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap">
+            <i class="fa-solid fa-user-shield"></i>
+            <span>4. Admin Auto-ACC</span>
+          </button>
+          <button onclick="openAdminTab('design')" id="nav-design" class="nav-btn admin-only-nav hidden px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap">
+            <i class="fa-solid fa-print"></i>
+            <span>5. Cetak CR80</span>
+          </button>
+          <button onclick="openAdminTab('excel')" id="nav-excel" class="nav-btn admin-only-nav hidden px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap">
+            <i class="fa-solid fa-file-excel"></i>
+            <span>6. Data Excel</span>
+          </button>
+          <button onclick="openAdminTab('attendance')" id="nav-attendance" class="nav-btn admin-only-nav hidden px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900 whitespace-nowrap">
+            <i class="fa-solid fa-tags"></i>
+            <span>7. Paket &amp; Kehadiran</span>
+          </button>
+          <button onclick="openPinModal('admin')" id="nav-admin-login-btn" class="px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white whitespace-nowrap ml-1 shadow-sm">
+            <i class="fa-solid fa-shield-halved text-amber-400"></i>
+            <span>Login Admin</span>
+          </button>
+          <button onclick="lockAdminSession('Kunci manual oleh Admin')" id="nav-admin-lock-btn" class="hidden px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 bg-rose-600 hover:bg-rose-700 text-white whitespace-nowrap ml-1 shadow-sm">
+            <i class="fa-solid fa-lock"></i>
+            <span>Kunci Admin (<span id="admin-idle-countdown">05:00</span>)</span>
+          </button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-7 flex-1 space-y-6">
+
+    <!-- EXECUTIVE STATUS RIBBON -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+      <div class="bg-white rounded-2xl border border-slate-200/80 px-4 py-3.5 shadow-sm flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-700 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-id-card-clip text-base"></i>
+        </div>
+        <div>
+          <p class="text-[11px] font-semibold text-slate-500">Standar Cetak</p>
+          <p class="text-xs sm:text-sm font-extrabold text-slate-900">CR80 • 300 DPI</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200/80 px-4 py-3.5 shadow-sm flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-bolt text-base"></i>
+        </div>
+        <div>
+          <p class="text-[11px] font-semibold text-slate-500">Aktivasi Kartu</p>
+          <p class="text-xs sm:text-sm font-extrabold text-slate-900">Instan &amp; Auto-ACC</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200/80 px-4 py-3.5 shadow-sm flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-shield-halved text-base"></i>
+        </div>
+        <div>
+          <p class="text-[11px] font-semibold text-slate-500">Privasi Identitas</p>
+          <p class="text-xs sm:text-sm font-extrabold text-slate-900">Terenkripsi Admin</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200/80 px-4 py-3.5 shadow-sm flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-location-dot text-base"></i>
+        </div>
+        <div>
+          <p class="text-[11px] font-semibold text-slate-500">Studio Utama</p>
+          <p class="text-xs sm:text-sm font-extrabold text-slate-900">Sudiang • Makassar</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- =========================================================
+         TAB 1: 1 QR MASSAL PENDAFTARAN
+    ========================================================== -->
+    <section id="tab-mass-qr" class="tab-content space-y-6">
+      <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6 sm:p-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-center">
+          <div class="lg:col-span-7 space-y-5">
+            <span class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-cyan-50 border border-cyan-200/70 text-cyan-800 text-xs font-bold">
+              <i class="fa-solid fa-bolt"></i> 1 QR Code Permanen Meja Studio &amp; Poster
+            </span>
+            <h2 class="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+              Aktivasi Kartu Member Cepat via 1 QR Massal
+            </h2>
+            <p class="text-sm text-slate-600 leading-relaxed">
+              Pajang satu QR Code ini di meja kasir, backdrop studio, atau brosur resmi. Pelanggan yang memindai QR langsung diarahkan ke formulir pendaftaran mandiri, mengisi <strong>Nomor Seri Kartu</strong> yang diterima, dan status keanggotaan otomatis menjadi <strong>AKTIF</strong>.
+            </p>
+
+            <!-- 3 Langkah Singkat -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span class="w-6 h-6 rounded-lg bg-cyan-600 text-white text-xs font-extrabold inline-flex items-center justify-center mb-2">1</span>
+                <p class="text-xs font-bold text-slate-900">Scan QR Studio</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Pindai QR meja atau QR pada fisik kartu Anda.</p>
+              </div>
+              <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span class="w-6 h-6 rounded-lg bg-cyan-600 text-white text-xs font-extrabold inline-flex items-center justify-center mb-2">2</span>
+                <p class="text-xs font-bold text-slate-900">Isi Nomor Seri</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Masukkan kode nomor kartu &amp; data diri lengkap.</p>
+              </div>
+              <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <span class="w-6 h-6 rounded-lg bg-emerald-600 text-white text-xs font-extrabold inline-flex items-center justify-center mb-2">3</span>
+                <p class="text-xs font-bold text-slate-900">Langsung Aktif</p>
+                <p class="text-[11px] text-slate-500 mt-0.5">Kartu digital &amp; benefit diskon langsung berlaku.</p>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">URL Pendaftaran Massal</label>
+              <div class="flex flex-col sm:flex-row gap-2">
+                <input type="text" id="mass-qr-url-input" readonly class="flex-1 px-3.5 py-2.5 rounded-xl bg-white border border-slate-300 font-mono text-xs text-slate-700" />
+                <button onclick="copyMassQrUrl()" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition whitespace-nowrap">
+                  <i class="fa-solid fa-copy mr-1.5"></i> Salin Link
+                </button>
+              </div>
+            </div>
+
+            <div class="flex flex-wrap gap-3 pt-1">
+              <button onclick="downloadMassQrPoster()" class="px-5 py-3.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold transition shadow-md shadow-cyan-600/20">
+                <i class="fa-solid fa-download mr-1.5"></i> Unduh Poster QR Siap Pajang (PNG)
+              </button>
+              <button onclick="openPublicQrAutoScanner('mass-qr')" class="px-5 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition shadow-md shadow-indigo-600/20">
+                <i class="fa-solid fa-camera mr-1.5"></i> Scan QR Kartu Otomatis (Kamera)
+              </button>
+              <button onclick="switchTab('register')" class="px-5 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-md shadow-emerald-600/20">
+                <i class="fa-solid fa-pen-to-square mr-1.5"></i> Buka Form Daftar Sekarang
+              </button>
+            </div>
+          </div>
+
+          <div class="lg:col-span-5 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-cyan-950 to-teal-900 text-white rounded-3xl p-7 sm:p-9 shadow-xl relative overflow-hidden">
+            <div class="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-cyan-400/10 blur-2xl pointer-events-none"></div>
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[10px] font-extrabold uppercase tracking-wider mb-3">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> QR Daftar Otomatis Aktif
+            </div>
+            <p class="text-[11px] font-extrabold uppercase tracking-[0.2em] text-cyan-300 mb-1">FARID STUDIO MULTIMEDIA</p>
+            <h3 class="text-lg sm:text-xl font-black mb-5 tracking-tight">SCAN QR DAFTAR MEMBER</h3>
+            <div class="bg-white p-4 rounded-2xl shadow-2xl ring-4 ring-white/15">
+              <div id="mass-qr-box" class="w-48 h-48 flex items-center justify-center"></div>
+            </div>
+            <p class="text-xs text-cyan-100/90 text-center mt-5 max-w-xs leading-relaxed">
+              Arahkan kamera HP Anda ke QR di atas atau QR pada fisik kartu, sistem otomatis membuka form &amp; mengisi Nomor Seri Kartu hingga <strong class="text-white">AKTIF</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 2: FORM PENDAFTARAN MEMBER (WAJIB NOMOR KARTU -> OTOMATIS AKTIF)
+    ========================================================== -->
+    <section id="tab-register" class="tab-content hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <!-- Formulir Kiri -->
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold">
+              <i class="fa-solid fa-circle-check"></i> Aktivasi Instan Otomatis
+            </span>
+            <button type="button" onclick="openPublicQrAutoScanner('register')" class="px-3.5 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-qrcode"></i> Scan QR Kartu Otomatis
+            </button>
+          </div>
+          <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Formulir Aktivasi Kartu Member</h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1 mb-6">Wajib memasukkan <strong>Nomor Seri Kartu</strong> yang tertera pada kartu fisik Anda (atau scan QR kartu). Keanggotaan langsung aktif seketika.</p>
+
+          <form id="member-reg-form" onsubmit="handleMemberRegistration(event)" class="space-y-4">
+            <div class="bg-cyan-50/70 border border-cyan-200 rounded-xl p-4">
+              <div class="flex items-center justify-between gap-2 mb-1.5">
+                <label for="reg-card-number" class="block text-xs font-extrabold text-cyan-950 uppercase tracking-wider">
+                  Nomor Seri Kartu Member (Wajib Diisi) <span class="text-rose-600">*</span>
+                </label>
+                <span id="reg-qr-auto-badge" class="hidden px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-extrabold uppercase tracking-wider">
+                  <i class="fa-solid fa-qrcode mr-1"></i> Terisi Otomatis dari QR
+                </span>
+              </div>
+              <input type="text" id="reg-card-number" required placeholder="Contoh: FS-0005, VIP-0001, EXC-0001 atau ketik 0005" oninput="handleRegCardNumberInput(this.value)" class="w-full px-4 py-3 rounded-xl bg-white border-2 border-cyan-500 font-mono text-base font-bold uppercase tracking-wider text-slate-900 focus:outline-none focus:ring-2 focus:ring-cyan-300" />
+              <p id="reg-card-hint" class="text-[11px] text-cyan-800 mt-1.5">Masukkan kode awalan &amp; nomor kartu yang tertera di kartu Anda (contoh: FS-0001, VIP-0001, EXC-0001).</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="reg-name" class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap <span class="text-rose-600">*</span></label>
+                <input type="text" id="reg-name" required placeholder="Contoh: Andi Muhammad Farid" oninput="renderInitialRegCardPreview()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-cyan-600" />
+              </div>
+              <div>
+                <label for="reg-phone" class="block text-xs font-bold text-slate-700 mb-1">Nomor WhatsApp Aktif <span class="text-rose-600">*</span></label>
+                <input type="tel" id="reg-phone" required placeholder="0852xxxxxxxx" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-cyan-600" />
+              </div>
+            </div>
+
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-2.5 text-xs text-slate-600">
+              <i class="fa-solid fa-shield-halved text-cyan-700 text-base"></i>
+              <span>Verifikasi identitas KTP &amp; Kartu Keluarga (KK) dikelola secara rahasia oleh Admin studio setelah aktivasi.</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label for="reg-category" class="block text-xs font-bold text-slate-700 mb-1">Pilihan Paket Member <span class="text-rose-600">*</span></label>
+                <select id="reg-category" onchange="renderInitialRegCardPreview()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:outline-none focus:border-cyan-600"></select>
+              </div>
+              <div>
+                <label for="reg-org" class="block text-xs font-bold text-slate-700 mb-1">Instansi / Kampus / Komunitas</label>
+                <input type="text" id="reg-org" placeholder="Contoh: UNHAS / Umum Makassar" oninput="renderInitialRegCardPreview()" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-cyan-600" />
+              </div>
+            </div>
+
+            <div>
+              <label for="reg-address" class="block text-xs font-bold text-slate-700 mb-1">Alamat Domisili</label>
+              <input type="text" id="reg-address" placeholder="Contoh: Jl. Perintis Kemerdekaan, Makassar" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:border-cyan-600" />
+            </div>
+
+            <button type="submit" class="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-700 hover:from-cyan-700 hover:to-teal-800 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2">
+              <i class="fa-solid fa-bolt"></i> Daftar &amp; Aktifkan Member Otomatis
+            </button>
+          </form>
+        </div>
+
+        <!-- Panel Kanan: Pratinjau Kartu & Data Asli Kartu Aktif -->
+        <div class="lg:col-span-5 space-y-5">
+          <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-6">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-slate-900">Pratinjau Kartu Member Digital</h3>
+              <span id="reg-live-status-badge" class="px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-800 text-[11px] font-bold">SIAP AKTIVASI</span>
+            </div>
+            <div class="rounded-2xl overflow-hidden border border-slate-200/90 bg-slate-50 cr80-card-shadow">
+              <img id="reg-live-card-img" alt="Pratinjau Kartu Member" class="w-full h-auto block" />
+            </div>
+            <p class="text-[11px] text-slate-500 mt-3 leading-relaxed">
+              Catatan privasi: Fisik kartu cetak tidak menampilkan biodata terbuka. Data lengkap hanya dapat diakses oleh pemilik nomor seri dan Admin.
+            </p>
+          </div>
+
+          <!-- Box Data Asli Kartu Aktif (Muncul otomatis jika nomor kartu sudah terdaftar aktif) -->
+          <div id="ereceipt-box" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold text-emerald-800 uppercase tracking-wider">
+                <i class="fa-solid fa-shield-check mr-1"></i> Data Asli Kartu Member Aktif
+              </span>
+              <span id="er-card-no" class="font-mono text-xs font-bold bg-emerald-600 text-white px-2.5 py-0.5 rounded-lg">FS-0001</span>
+            </div>
+            <div class="bg-white rounded-xl p-3.5 border border-emerald-200 text-xs space-y-1.5">
+              <p><span class="text-slate-500">Nama Pemilik:</span> <strong id="er-name" class="text-slate-900">-</strong></p>
+              <p><span class="text-slate-500">Paket Member:</span> <strong id="er-category" class="text-cyan-700">-</strong></p>
+              <p><span class="text-slate-500">No. WhatsApp:</span> <strong id="er-phone" class="text-slate-800">-</strong></p>
+              <p><span class="text-slate-500">Instansi/Kampus:</span> <strong id="er-org" class="text-slate-800">-</strong></p>
+              <p><span class="text-slate-500">Tanggal Aktif:</span> <strong id="er-date" class="text-slate-800">-</strong></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 3: CEK STATUS & PORTAL KARTU MEMBER SESUAI NOMOR SERI
+    ========================================================== -->
+    <section id="tab-portal" class="tab-content hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8 max-w-4xl mx-auto">
+        <div class="text-center max-w-xl mx-auto mb-6">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-50 text-cyan-800 text-xs font-bold mb-2">
+            <i class="fa-solid fa-id-badge"></i> Portal Resmi Pemilik Kartu
+          </span>
+          <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Cek Keaslian &amp; Kartu Digital Member</h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1">Masukkan nomor seri kartu Anda (misalnya <code class="font-mono font-bold text-cyan-700">FS-0001</code> atau <code class="font-mono font-bold text-cyan-700">0001</code>) untuk menampilkan data asli kartu member aktif dan desain kartu digital 2 sisi.</p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 max-w-lg mx-auto mb-6">
+          <input type="text" id="portal-card-input" placeholder="Masukkan Nomor Kartu (Contoh: 0001 / FS-0001)" oninput="lookupMemberPortal(this.value)" class="flex-1 px-4 py-3 rounded-xl border-2 border-slate-300 font-mono text-sm uppercase tracking-wider focus:outline-none focus:border-cyan-600" />
+          <button onclick="lookupMemberPortal(document.getElementById('portal-card-input').value)" class="px-6 py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold transition shadow-sm">
+            <i class="fa-solid fa-magnifying-glass mr-1.5"></i> Tampilkan Kartu
+          </button>
+        </div>
+
+        <div id="portal-result-empty" class="text-center py-8 text-xs text-slate-400 border border-dashed border-slate-200 rounded-2xl">
+          Ketik nomor seri kartu untuk menampilkan identitas asli member dan kartu digital CR80 2 sisi.
+        </div>
+
+        <div id="portal-result-card" class="hidden space-y-6">
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span id="portal-status-pill" class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800">AKTIF</span>
+                <span id="portal-card-code" class="font-mono text-sm font-extrabold text-cyan-800">FS-0001</span>
+              </div>
+              <h3 id="portal-member-name" class="text-lg font-extrabold text-slate-900">-</h3>
+              <p id="portal-member-meta" class="text-xs text-slate-600">-</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button onclick="downloadMemberDigitalPng(document.getElementById('portal-card-code').textContent, 'front')" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold transition">
+                <i class="fa-solid fa-download mr-1"></i> PNG Depan
+              </button>
+              <button onclick="downloadMemberDigitalPng(document.getElementById('portal-card-code').textContent, 'back')" class="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition">
+                <i class="fa-solid fa-download mr-1"></i> PNG Belakang
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div>
+              <p class="text-xs font-bold text-slate-600 mb-2">Sisi Depan Kartu Member</p>
+              <img id="portal-img-front" alt="Kartu Depan" class="w-full rounded-xl border border-slate-200 shadow-sm" />
+            </div>
+            <div>
+              <p class="text-xs font-bold text-slate-600 mb-2">Sisi Belakang Kartu Member</p>
+              <img id="portal-img-back" alt="Kartu Belakang" class="w-full rounded-xl border border-slate-200 shadow-sm" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 4: PANEL ADMIN & TERMINAL AUTO-ACC NOMOR KARTU
+    ========================================================== -->
+    <section id="tab-admin" class="tab-content hidden space-y-6">
+      <!-- Locked View -->
+      <div id="admin-locked-view" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center max-w-md mx-auto">
+        <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-4 text-2xl">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 class="text-lg font-extrabold text-slate-900">Area Khusus Admin Farid Studio</h2>
+        <p class="text-xs text-slate-500 mt-1 mb-5">Masukkan PIN Admin (default: <code class="font-mono font-bold">12345</code>) untuk mengelola Auto-ACC nomor kartu, cetak batch CR80, data Excel, dan scanner kehadiran.</p>
+        <button onclick="openPinModal('admin')" class="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold transition shadow-sm">
+          <i class="fa-solid fa-key mr-1.5"></i> Login PIN Admin
+        </button>
+      </div>
+
+      <!-- Unlocked View -->
+      <div id="admin-unlocked-view" class="hidden space-y-6">
+        <!-- Terminal Auto-ACC -->
+        <div class="bg-gradient-to-r from-slate-900 to-cyan-950 text-white rounded-2xl p-6 sm:p-8 shadow-lg">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div class="space-y-2 max-w-xl">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold">
+                <i class="fa-solid fa-bolt"></i> Auto-ACC Real-Time Berdasarkan Nomor Kartu
+              </span>
+              <h2 class="text-xl sm:text-2xl font-extrabold">Terminal Aktivasi &amp; ACC Otomatis</h2>
+              <p class="text-xs text-slate-300">Ketik 4 digit nomor seri kartu (contoh: <code class="font-mono text-cyan-300">0003</code>) atau scan QR kartu — status langsung otomatis berubah menjadi <strong>AKTIF (ACC)</strong> tanpa perlu klik konfirmasi tambahan.</p>
+            </div>
+            <div class="w-full lg:w-96 space-y-2">
+              <input type="text" id="auto-acc-input" placeholder="Ketik 0001 atau FS-0001..." oninput="handleAutoAccInput(this.value)" class="w-full px-4 py-3 rounded-xl bg-white/10 border-2 border-cyan-400 text-white font-mono text-lg font-bold uppercase tracking-widest placeholder:text-slate-400 focus:outline-none focus:bg-white/15" />
+              <div id="auto-acc-feedback" class="hidden rounded-xl p-3 text-xs"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Toolbar & Tabel Member Admin -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h3 class="text-base font-extrabold text-slate-900">Daftar Member &amp; Pengelolaan KTP / KK (Khusus Admin)</h3>
+              <p class="text-xs text-slate-500">Klik <strong>Kelola KTP</strong> pada masing-masing baris untuk menginput atau mengedit NIK &amp; Nomor Kartu Keluarga.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <input type="text" id="admin-search-input" oninput="renderAdminMemberTable()" placeholder="Cari nomor kartu, nama, atau NIK..." class="px-3.5 py-2 rounded-xl border border-slate-300 text-xs w-56 focus:outline-none focus:border-cyan-600" />
+              <button onclick="openSecurityAuditModal()" class="px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold">
+                <i class="fa-solid fa-clipboard-list mr-1"></i> Log Keamanan
+              </button>
+              <button onclick="openChangePinModal()" class="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">
+                <i class="fa-solid fa-key mr-1"></i> Ubah PIN &amp; Master Key
+              </button>
+            </div>
+          </div>
+
+          <!-- Security Status Banner inside Admin -->
+          <div class="bg-slate-900 text-slate-200 rounded-xl px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span><strong>Proteksi Super Ketat Aktif:</strong> Enkripsi SHA-256 + 2FA Master Key + Auto-Lock Idle 5 Menit.</span>
+            </div>
+            <label class="inline-flex items-center gap-2 cursor-pointer font-semibold text-amber-300">
+              <input type="checkbox" id="chk-autolock-blur" checked onchange="toggleBlurAutoLock(this.checked)" class="rounded border-slate-600 text-cyan-500 focus:ring-0" />
+              <span>Kunci otomatis saat pindah tab browser</span>
+            </label>
+          </div>
+
+          <!-- Tabel Daftar Member Admin & KTP -->
+          <div class="overflow-x-auto border border-slate-200 rounded-xl">
+            <table class="w-full text-left border-collapse min-w-[900px]">
+              <thead>
+                <tr class="bg-slate-100 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                  <th class="p-3">No. Kartu</th>
+                  <th class="p-3">Nama Member</th>
+                  <th class="p-3">Arsip KTP &amp; KK (Rahasia)</th>
+                  <th class="p-3">No. WhatsApp</th>
+                  <th class="p-3">Paket</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3 text-right">Aksi Admin</th>
+                </tr>
+              </thead>
+              <tbody id="admin-member-tbody" class="divide-y divide-slate-100 text-xs"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 5: STUDIO DESAIN & CETAK MASSAL CR80 (KHUSUS ADMIN)
+    ========================================================== -->
+    <section id="tab-design" class="tab-content hidden space-y-6">
+      <div id="print-locked-notice" class="bg-amber-50 border border-amber-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-lock text-amber-600 text-xl"></i>
+          <div>
+            <p class="text-sm font-bold text-amber-900">Studio Desain &amp; Cetak CR80 Terkunci Khusus Admin</p>
+            <p class="text-xs text-amber-800">Masukkan PIN &amp; Master Key Admin untuk mengedit desain kartu dan mencetak massal CR80.</p>
+          </div>
+        </div>
+        <button onclick="openPinModal('design')" class="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition whitespace-nowrap shadow-sm">
+          <i class="fa-solid fa-key mr-1.5"></i> Login Admin Sekarang
+        </button>
+      </div>
+
+      <div id="print-unlocked-panel" class="hidden space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <!-- Editor Desain Kartu -->
+          <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h2 class="text-base font-extrabold text-slate-900"><i class="fa-solid fa-palette text-cyan-600 mr-1.5"></i> Editor Desain Kartu CR80</h2>
+                <p class="text-[11px] text-slate-500">Perubahan langsung diterapkan ke pratinjau &amp; cetak massal.</p>
+              </div>
+              <button onclick="resetDesignConfig()" class="px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] font-bold text-slate-600 hover:bg-slate-50">Reset</button>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Tema Desain Kartu</label>
+                <select id="des-theme" onchange="applyThemePreset(this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white">
+                  <option value="teal-modern">1. Teal Modern (Biru Putih)</option>
+                  <option value="exclusive-vip">2. Exclusive VIP (Hitam Emas)</option>
+                  <option value="royal-navy">3. Royal Navy &amp; Gold</option>
+                  <option value="emerald-prestige">4. Emerald Studio Prestige</option>
+                  <option value="pearl-minimal">5. Pearl White Minimalist</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Pratinjau Paket di Studio</label>
+                <select id="des-preview-package" onchange="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white"></select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">Tampilan Paket di Kartu (Umum / Custom)</label>
+              <input type="text" id="des-package-display" oninput="liveUpdateDesignPreview()" placeholder="Kosongkan untuk pakai label paket, atau ketik mis: Member Reguler" class="w-full px-3 py-2 rounded-xl border border-indigo-200 bg-indigo-50/30 text-xs font-semibold" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Nama Brand Utama</label>
+                <input type="text" id="des-brand-title" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Kontak HP / WhatsApp</label>
+                <input type="text" id="des-phone-text" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2">
+              <div>
+                <label class="block text-[10px] font-bold text-slate-600 mb-1">Warna Utama</label>
+                <input type="color" id="des-primary-color" oninput="liveUpdateDesignPreview()" class="w-full h-9 rounded-lg border border-slate-300 cursor-pointer" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-600 mb-1">Warna Aksen</label>
+                <input type="color" id="des-accent-color" oninput="liveUpdateDesignPreview()" class="w-full h-9 rounded-lg border border-slate-300 cursor-pointer" />
+              </div>
+              <div>
+                <label class="block text-[10px] font-bold text-slate-600 mb-1">Warna Gelap</label>
+                <input type="color" id="des-dark-color" oninput="liveUpdateDesignPreview()" class="w-full h-9 rounded-lg border border-slate-300 cursor-pointer" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Ukuran Judul: <span id="lbl-title-size">48</span>px</label>
+                <input type="range" id="des-title-size" min="34" max="66" value="48" oninput="document.getElementById('lbl-title-size').textContent=this.value; liveUpdateDesignPreview()" class="w-full" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Ukuran QR: <span id="lbl-qr-size">155</span>px</label>
+                <input type="range" id="des-qr-size" min="115" max="210" value="155" oninput="document.getElementById('lbl-qr-size').textContent=this.value; liveUpdateDesignPreview()" class="w-full" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Label Pojok Kanan Atas</label>
+                <input type="text" id="des-badge-label" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Kode Awalan Seri Default</label>
+                <input type="text" id="des-serial-prefix" maxlength="8" oninput="this.value=this.value.toUpperCase(); liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs font-bold uppercase" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">Teks Keterangan Di Dalam Kartu</label>
+              <input type="text" id="des-card-caption" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Label Bawah QR</label>
+                <input type="text" id="des-qr-label" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Judul Sisi Belakang</label>
+                <input type="text" id="des-back-title" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs" />
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Instagram</label>
+                <input type="text" id="des-ig" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs" />
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-700 mb-1">Hashtag</label>
+                <input type="text" id="des-hashtag" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">Alamat Studio Utama</label>
+              <input type="text" id="des-address-main" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs" />
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold text-slate-700 mb-1">Alamat Cabang</label>
+              <input type="text" id="des-address-branch" oninput="liveUpdateDesignPreview()" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs" />
+            </div>
+
+            <button onclick="saveDesignConfig(true)" class="w-full py-3 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold shadow-sm transition">
+              <i class="fa-solid fa-floppy-disk mr-1.5"></i> Simpan Desain untuk Cetak Massal
+            </button>
+          </div>
+
+          <!-- Pratinjau & Batch Generator Tak Terbatas -->
+          <div class="lg:col-span-7 space-y-6">
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-sm font-extrabold text-slate-900">Pratinjau Kartu CR80 (300 DPI)</h3>
+                <div class="flex gap-2">
+                  <button onclick="downloadStudioPreview('front')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs font-bold">
+                    <i class="fa-solid fa-download mr-1"></i> PNG Depan
+                  </button>
+                  <button onclick="downloadStudioPreview('back')" class="px-3 py-1.5 rounded-lg bg-slate-700 text-white text-xs font-bold">
+                    <i class="fa-solid fa-download mr-1"></i> PNG Belakang
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p class="text-[11px] font-bold text-slate-500 mb-1.5">Tampak Depan</p>
+                  <img id="studio-preview-front" alt="Pratinjau Depan CR80" class="w-full rounded-xl border border-slate-200 cr80-card-shadow" />
+                </div>
+                <div>
+                  <p class="text-[11px] font-bold text-slate-500 mb-1.5">Tampak Belakang</p>
+                  <img id="studio-preview-back" alt="Pratinjau Belakang CR80" class="w-full rounded-xl border border-slate-200 cr80-card-shadow" />
+                </div>
+              </div>
+            </div>
+
+            <!-- Generator Batch Kartu Tak Terbatas -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <h3 class="text-base font-extrabold text-slate-900"><i class="fa-solid fa-layer-group text-emerald-600 mr-1.5"></i> Generator Batch &amp; Cetak Massal A4 (Tak Terbatas)</h3>
+                  <p class="text-xs text-slate-500">Nomor seri otomatis masuk ke <strong>6. Data Excel Admin</strong> lengkap dengan jenis desain kartunya.</p>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                  <button onclick="setBatchRange(1, 10)" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[11px] font-bold">1–10</button>
+                  <button onclick="setBatchRange(1, 100)" class="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[11px] font-bold">1–100</button>
+                  <button onclick="setNextUnlimitedBatch(100)" class="px-2.5 py-1 rounded-lg bg-cyan-50 hover:bg-cyan-100 text-cyan-800 text-[11px] font-bold">+100 Seri Berikutnya</button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">Paket Batch</label>
+                  <select id="batch-package" onchange="syncBatchPrefixFromPackage(this.value)" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white"></select>
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">Kode Awalan</label>
+                  <input type="text" id="batch-prefix" value="FS" maxlength="8" oninput="this.value=this.value.toUpperCase()" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs font-bold uppercase" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">Nomor Mulai</label>
+                  <input type="number" id="batch-start" min="1" value="1" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs font-bold" />
+                </div>
+                <div>
+                  <label class="block text-[11px] font-bold text-slate-700 mb-1">Nomor Akhir (Bebas)</label>
+                  <input type="number" id="batch-end" min="1" value="10" class="w-full px-3 py-2 rounded-xl border border-slate-300 font-mono text-xs font-bold" />
+                </div>
+              </div>
+
+              <div id="batch-progress-box" class="hidden bg-cyan-50 border border-cyan-200 rounded-xl p-3 text-xs font-bold text-cyan-900"></div>
+
+              <div class="flex items-center justify-between bg-emerald-50/70 border border-emerald-200 rounded-xl px-4 py-2.5 text-xs">
+                <label class="inline-flex items-center gap-2 cursor-pointer font-bold text-emerald-900">
+                  <input type="checkbox" id="chk-auto-export-excel" checked class="rounded border-emerald-400 text-emerald-600 focus:ring-0" />
+                  <span>Otomatis simpan &amp; unduh file Excel (.xlsx) setelah cetak kartu</span>
+                </label>
+                <span class="text-[11px] font-semibold text-emerald-700 hidden sm:inline">Auto-Backup Spreadsheet</span>
+              </div>
+
+              <div class="flex flex-wrap gap-3">
+                <button onclick="generateBatchSlotsOnly()" class="px-5 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition">
+                  <i class="fa-solid fa-database mr-1.5"></i> Simpan Slot ke Data Excel
+                </button>
+                <button onclick="generateBatchSlotsAndPrint()" class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition">
+                  <i class="fa-solid fa-print mr-1.5"></i> Generate, Simpan Excel &amp; Cetak A4 CR80
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 6: DATA EXCEL MEMBER KHUSUS ADMIN
+    ========================================================== -->
+    <section id="tab-excel" class="tab-content hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
+          <div>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-bold mb-2">
+              <i class="fa-solid fa-file-excel"></i> Spreadsheet Database Terkoneksi Real-Time
+            </span>
+            <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Data Excel Member &amp; Keluaran Cetak (Khusus Admin)</h2>
+            <p class="text-xs sm:text-sm text-slate-500 mt-1">Edit sel secara langsung seperti Microsoft Excel, impor dari file `.xlsx`, atau ekspor seluruh database ke `.xlsx`.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <label class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold cursor-pointer transition shadow-sm">
+              <i class="fa-solid fa-file-import mr-1.5"></i> Import Excel (.xlsx)
+              <input type="file" accept=".xlsx,.xls,.csv" onchange="importMembersExcel(event)" class="hidden" />
+            </label>
+            <button onclick="exportMembersExcel()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm">
+              <i class="fa-solid fa-file-export mr-1.5"></i> Export Excel (.xlsx)
+            </button>
+            <button id="btn-excel-clear-all" onclick="requestClearAllExcelMembers()" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm">
+              <i class="fa-solid fa-trash-can mr-1.5"></i> Hapus Semua
+            </button>
+          </div>
+        </div>
+
+        <div id="excel-clear-confirm-bar" class="hidden mb-4 bg-rose-50 border border-rose-300 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5 text-xs text-rose-900">
+            <i class="fa-solid fa-triangle-exclamation text-rose-600 text-base"></i>
+            <span>Yakin ingin menghapus <strong>SELURUH (<span id="excel-clear-count">0</span>) data member</strong> di tabel Excel ini? Tindakan ini tidak dapat dibatalkan.</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="cancelClearAllExcelMembers()" class="px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold">Batal</button>
+            <button onclick="confirmClearAllExcelMembers()" class="px-3.5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm">
+              <i class="fa-solid fa-trash-can mr-1"></i> Ya, Hapus Semua Data
+            </button>
+          </div>
+        </div>
+
+        <div id="excel-locked-notice" class="bg-amber-50 border border-amber-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <i class="fa-solid fa-lock text-amber-600 text-xl"></i>
+            <div>
+              <p class="text-sm font-bold text-amber-900">Database Excel Member Terkunci Khusus Admin</p>
+              <p class="text-xs text-amber-800">Masukkan PIN &amp; Master Key Admin untuk melihat, mengedit, atau menghapus data spreadsheet member.</p>
+            </div>
+          </div>
+          <button onclick="openPinModal('excel')" class="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition whitespace-nowrap shadow-sm">
+            <i class="fa-solid fa-key mr-1.5"></i> Login Admin Sekarang
+          </button>
+        </div>
+
+        <div id="excel-unlocked-panel" class="hidden space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <input type="text" id="excel-search-input" oninput="renderExcelTable()" placeholder="Cari nomor kartu, nama, WA, desain, atau NIK..." class="w-full sm:w-80 px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-600" />
+            <button onclick="addNewExcelRow()" class="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold transition shadow-sm">
+              <i class="fa-solid fa-plus mr-1.5"></i> Tambah Baris Member Baru
+            </button>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-xl max-h-[520px]">
+            <table class="w-full text-left border-collapse min-w-[1150px]">
+              <thead class="sticky top-0 bg-emerald-50 border-b border-emerald-200 text-[11px] font-bold uppercase tracking-wider text-emerald-950 z-10">
+                <tr>
+                  <th class="p-3">No. Kartu</th>
+                  <th class="p-3">Nama Lengkap</th>
+                  <th class="p-3">No. WhatsApp</th>
+                  <th class="p-3">Paket</th>
+                  <th class="p-3">Jenis Desain Kartu</th>
+                  <th class="p-3">Instansi / Kampus</th>
+                  <th class="p-3">NIK KTP</th>
+                  <th class="p-3">No. KK</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3">Catatan</th>
+                  <th class="p-3 text-right">Hapus</th>
+                </tr>
+              </thead>
+              <tbody id="excel-table-body" class="divide-y divide-slate-100 text-xs"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =========================================================
+         TAB 7: PAKET HARGA & DAFTAR KEHADIRAN STUDIO (KHUSUS ADMIN)
+    ========================================================== -->
+    <section id="tab-attendance" class="tab-content hidden space-y-6">
+      <div id="attendance-locked-notice" class="bg-amber-50 border border-amber-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <i class="fa-solid fa-lock text-amber-600 text-xl"></i>
+          <div>
+            <p class="text-sm font-bold text-amber-900">Paket Harga &amp; Presensi Kehadiran Terkunci Khusus Admin</p>
+            <p class="text-xs text-amber-800">Masukkan PIN &amp; Master Key Admin untuk mengelola harga paket dan memindai QR/Barcode kehadiran member.</p>
+          </div>
+        </div>
+        <button onclick="openPinModal('attendance')" class="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition whitespace-nowrap shadow-sm">
+          <i class="fa-solid fa-key mr-1.5"></i> Login Admin Sekarang
+        </button>
+      </div>
+
+      <div id="attendance-unlocked-panel" class="hidden space-y-6">
+        <!-- Manajemen Paket Harga & Kode Awalan Seri -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
+            <div>
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-50 text-cyan-800 text-xs font-bold mb-2">
+                <i class="fa-solid fa-tags"></i> Manajemen Tarif, Kode Seri &amp; Label Kartu
+              </span>
+              <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Paket Harga Member Farid Studio</h2>
+              <p class="text-xs sm:text-sm text-slate-500 mt-1">Atur harga paket, kode awalan nomor seri (mis. FS, VIP, EXC), serta teks label paket di kartu.</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="togglePackageEditor()" class="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-sm">
+                <i class="fa-solid fa-pen-to-square mr-1.5"></i> Edit / Tambah Paket
+              </button>
+            </div>
+          </div>
+
+          <div id="packages-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4"></div>
+
+          <div id="package-admin-editor" class="hidden mt-6 pt-6 border-t border-slate-200 bg-slate-50 rounded-2xl p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3 class="text-sm font-bold text-slate-900"><i class="fa-solid fa-sliders text-cyan-600 mr-1.5"></i> Editor Paket Keanggotaan</h3>
+              <div class="flex gap-2">
+                <button onclick="addNewPackageRow()" class="px-3.5 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold">
+                  <i class="fa-solid fa-plus mr-1"></i> Tambah Paket
+                </button>
+                <button onclick="savePackageConfigs()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold">
+                  <i class="fa-solid fa-floppy-disk mr-1"></i> Simpan Semua Paket
+                </button>
+              </div>
+            </div>
+            <div id="package-editor-rows" class="space-y-3"></div>
+          </div>
+        </div>
+
+        <!-- Terminal Scan Kehadiran Studio -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 sm:p-8">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5 mb-6">
+            <div>
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-800 text-xs font-bold mb-2">
+                <i class="fa-solid fa-barcode"></i> Presensi &amp; Kunjungan Studio
+              </span>
+              <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Daftar Kehadiran Member (Scan Barcode / QR Kartu)</h2>
+              <p class="text-xs sm:text-sm text-slate-500 mt-1">Gunakan kamera perangkat, barcode scanner USB, atau ketik nomor seri kartu untuk mencatat kehadiran member.</p>
+            </div>
+            <button onclick="exportAttendanceExcel()" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm">
+              <i class="fa-solid fa-file-excel mr-1.5"></i> Export Kehadiran (.xlsx)
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div class="lg:col-span-5 bg-slate-900 text-white rounded-2xl p-5 sm:p-6 space-y-4 shadow-md">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                  <i class="fa-solid fa-qrcode mr-1.5"></i> Scanner Kartu Member
+                </span>
+                <button id="btn-camera-scan" onclick="toggleCameraScanner()" class="px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-bold transition">
+                  <i class="fa-solid fa-camera mr-1"></i> Buka Kamera Scan
+                </button>
+              </div>
+
+              <div id="camera-scanner-wrapper" class="hidden relative rounded-xl overflow-hidden bg-black border border-slate-700 aspect-video">
+                <video id="attendance-video" class="w-full h-full object-cover" playsinline muted></video>
+                <div class="absolute inset-0 border-2 border-cyan-400/70 m-6 rounded-lg pointer-events-none flex items-end justify-center pb-2">
+                  <span class="bg-black/70 text-[10px] text-cyan-300 px-2.5 py-0.5 rounded-full">Arahkan QR / Barcode Kartu ke Kamera</span>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-300 mb-1.5">Keperluan Kunjungan di Studio</label>
+                <select id="att-purpose" class="w-full px-3.5 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white text-xs font-semibold focus:outline-none focus:border-cyan-400">
+                  <option value="Sesi Foto Studio">Sesi Foto Studio</option>
+                  <option value="Foto Wisuda / Keluarga">Foto Wisuda / Keluarga</option>
+                  <option value="Cetak Foto / Bingkai">Cetak Foto / Bingkai</option>
+                  <option value="Klaim Diskon / Benefit Member">Klaim Diskon / Benefit Member</option>
+                  <option value="Konsultasi & Booking Event">Konsultasi &amp; Booking Event</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-300 mb-1.5">Scan Barcode USB / Ketik Nomor Kartu</label>
+                <div class="flex gap-2">
+                  <input type="text" id="att-scan-input" placeholder="Scan QR / Ketik 0001 atau FS-0001..." oninput="handleAttendanceScanInput(this.value)" onkeydown="if(event.key==='Enter'){processAttendanceCheckIn(this.value);}" class="flex-1 px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 text-white font-mono text-sm uppercase tracking-wider focus:outline-none focus:border-cyan-400" />
+                  <button onclick="processAttendanceCheckIn(document.getElementById('att-scan-input').value)" class="px-4 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs transition whitespace-nowrap">
+                    Check-In
+                  </button>
+                </div>
+              </div>
+
+              <div id="att-scan-feedback" class="hidden rounded-xl p-3.5 text-xs border"></div>
+            </div>
+
+            <div class="lg:col-span-7 space-y-4">
+              <div class="grid grid-cols-3 gap-3">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <p class="text-[11px] font-semibold text-slate-500">Hadir Hari Ini</p>
+                  <p id="stat-att-today" class="text-xl sm:text-2xl font-extrabold text-cyan-700 mt-0.5">0</p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <p class="text-[11px] font-semibold text-slate-500">Total Kunjungan</p>
+                  <p id="stat-att-total" class="text-xl sm:text-2xl font-extrabold text-slate-900 mt-0.5">0</p>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3.5">
+                  <p class="text-[11px] font-semibold text-slate-500">Member Unik</p>
+                  <p id="stat-att-unique" class="text-xl sm:text-2xl font-extrabold text-emerald-700 mt-0.5">0</p>
+                </div>
+              </div>
+
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <input type="text" id="att-search-input" oninput="renderAttendanceTable()" placeholder="Cari nama member, nomor kartu, atau keperluan..." class="w-full sm:w-72 px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-none focus:border-cyan-500" />
+                <button onclick="clearAttendanceLogs()" class="px-3 py-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-semibold transition">
+                  <i class="fa-solid fa-trash-can mr-1"></i> Reset Log Kehadiran
+                </button>
+              </div>
+
+              <div class="overflow-x-auto border border-slate-200 rounded-xl max-h-[380px]">
+                <table class="w-full text-left border-collapse min-w-[620px]">
+                  <thead class="sticky top-0 bg-slate-100 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-700">
+                    <tr>
+                      <th class="p-3">Waktu Check-In</th>
+                      <th class="p-3">No. Kartu</th>
+                      <th class="p-3">Nama Member</th>
+                      <th class="p-3">Paket</th>
+                      <th class="p-3">Keperluan</th>
+                      <th class="p-3 text-right">Hapus</th>
+                    </tr>
+                  </thead>
+                  <tbody id="attendance-table-body" class="divide-y divide-slate-100 text-xs"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-slate-200/80 bg-white/80 mt-10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+      <p class="font-semibold text-slate-700">&copy; 2026 Farid Studio Multimedia — Sistem Keanggotaan CR80 &amp; Presensi Studio.</p>
+      <p>Jl. Perintis Kemerdekaan Km.16 No.49 Sudiang &bull; Jl. Poros Taman Sudiang Indah</p>
+    </div>
+  </footer>
+
+  <!-- MODAL LOGIN 2FA PIN & MASTER KEY ADMIN -->
+  <div id="pin-modal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="w-9 h-9 rounded-xl bg-slate-900 text-amber-400 flex items-center justify-center">
+            <i class="fa-solid fa-shield-halved"></i>
+          </span>
+          <div>
+            <h3 class="text-base font-extrabold text-slate-900">Kunci Keamanan Super Ketat</h3>
+            <p class="text-[11px] text-slate-500">Otentikasi 2 Faktor (SHA-256 + Master Key)</p>
+          </div>
+        </div>
+        <button onclick="closePinModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div id="pin-lockout-banner" class="hidden bg-rose-50 border border-rose-300 text-rose-800 rounded-xl p-3 text-xs font-semibold">
+        <i class="fa-solid fa-ban mr-1"></i> Terlalu banyak percobaan gagal. Coba lagi dalam <span id="pin-lockout-timer" class="font-mono font-bold">60</span> detik.
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">1. PIN Rahasia Admin <span class="text-slate-400 font-normal">(Default: 12345)</span></label>
+          <input type="password" id="admin-pin-input" maxlength="12" placeholder="Masukkan PIN..." onkeydown="if(event.key==='Enter') document.getElementById('admin-master-key-input').focus()" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-mono text-sm tracking-widest focus:outline-none focus:border-cyan-600" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">2. Master Security Key Studio <span class="text-slate-400 font-normal">(Default: FARID-VIP)</span></label>
+          <input type="password" id="admin-master-key-input" maxlength="24" placeholder="Masukkan Master Key..." onkeydown="if(event.key==='Enter') verifyAdminPin()" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-mono text-sm uppercase tracking-wider focus:outline-none focus:border-cyan-600" />
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-1">
+        <button onclick="closePinModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50">Batal</button>
+        <button id="btn-verify-admin" onclick="verifyAdminPin()" class="flex-1 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm">
+          <i class="fa-solid fa-unlock-keyhole text-amber-400 mr-1"></i> Verifikasi &amp; Buka
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL UBAH PIN & MASTER KEY -->
+  <div id="change-pin-modal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-extrabold text-slate-900"><i class="fa-solid fa-key text-amber-600 mr-1.5"></i> Ubah PIN &amp; Master Key Admin</h3>
+        <button onclick="document.getElementById('change-pin-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">PIN Admin Baru (Minimal 4 digit)</label>
+          <input type="password" id="new-admin-pin-input" maxlength="12" placeholder="Masukkan PIN baru..." class="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-mono text-sm" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">Master Security Key Baru (Minimal 4 karakter)</label>
+          <input type="password" id="new-master-key-input" maxlength="24" placeholder="Contoh: FARID-2026" class="w-full px-4 py-2.5 rounded-xl border border-slate-300 font-mono text-sm uppercase" />
+        </div>
+      </div>
+      <div class="flex gap-2">
+        <button onclick="document.getElementById('change-pin-modal').classList.add('hidden')" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Batal</button>
+        <button onclick="saveNewAdminPin()" class="flex-1 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-xs font-bold">Simpan Kredensial</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL KELOLA KTP & KK (KHUSUS ADMIN) -->
+  <div id="ktp-modal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h3 class="text-base font-extrabold text-slate-900"><i class="fa-solid fa-id-card text-indigo-600 mr-1.5"></i> Arsip KTP &amp; Kartu Keluarga (KK)</h3>
+          <p id="ktp-modal-subtitle" class="text-xs text-slate-500">Nomor Kartu: -</p>
+        </div>
+        <button onclick="closeKtpModal()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <input type="hidden" id="ktp-edit-card-no" />
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">NIK KTP (16 Digit)</label>
+          <input type="text" id="ktp-edit-nik" maxlength="16" placeholder="7371xxxxxxxxxxxx" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 font-mono text-xs" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-slate-700 mb-1">Nomor Kartu Keluarga (16 Digit)</label>
+          <input type="text" id="ktp-edit-kk" maxlength="16" placeholder="7371xxxxxxxxxxxx" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 font-mono text-xs" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold text-slate-700 mb-1">Status Hubungan Dalam KK</label>
+        <select id="ktp-edit-rel" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs bg-white">
+          <option value="Kepala Keluarga">Kepala Keluarga</option>
+          <option value="Istri">Istri</option>
+          <option value="Anak">Anak</option>
+          <option value="Famili Lain">Famili Lain</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-[11px] font-bold text-slate-700 mb-1">Alamat Lengkap Sesuai KTP</label>
+        <textarea id="ktp-edit-address" rows="2" placeholder="Masukkan alamat lengkap sesuai KTP..." class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs"></textarea>
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="closeKtpModal()" class="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600">Batal</button>
+        <button onclick="saveKtpData()" class="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold">Simpan Data KTP &amp; KK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL LOG AUDIT KEAMANAN ADMIN -->
+  <div id="security-audit-modal" class="fixed inset-0 z-50 hidden bg-slate-950/75 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 class="text-base font-extrabold text-slate-900"><i class="fa-solid fa-clipboard-list text-amber-600 mr-1.5"></i> Log Audit Keamanan Admin</h3>
+        <button onclick="document.getElementById('security-audit-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="max-h-80 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 text-xs" id="security-audit-list"></div>
+      <div class="flex justify-end">
+        <button onclick="document.getElementById('security-audit-modal').classList.add('hidden')" class="px-5 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL SCANNER KAMERA QR DAFTAR OTOMATIS (PUBLIK & MEMBER) -->
+  <div id="public-qr-scanner-modal" class="fixed inset-0 z-50 hidden bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <span class="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center">
+            <i class="fa-solid fa-qrcode"></i>
+          </span>
+          <div>
+            <h3 class="text-base font-extrabold text-slate-900">Scanner QR Daftar Otomatis</h3>
+            <p class="text-[11px] text-slate-500">Arahkan kamera ke QR Poster Studio atau QR Fisik Kartu</p>
+          </div>
+        </div>
+        <button onclick="closePublicQrAutoScanner()" class="text-slate-400 hover:text-slate-700"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <div class="relative rounded-2xl overflow-hidden bg-slate-950 border-2 border-cyan-500/70 aspect-video">
+        <video id="public-qr-video" class="w-full h-full object-cover" playsinline muted></video>
+        <div class="absolute inset-0 border-2 border-cyan-400 m-7 rounded-xl pointer-events-none flex items-end justify-center pb-2">
+          <span class="bg-slate-950/80 text-[10px] font-bold text-cyan-300 px-3 py-1 rounded-full">Memindai QR Code Secara Otomatis...</span>
+        </div>
+      </div>
+
+      <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-[11px] text-slate-600 leading-relaxed">
+        <i class="fa-solid fa-circle-info text-cyan-600 mr-1"></i>
+        Begitu QR Code terdeteksi, nomor seri kartu dan paket langsung terisi otomatis di formulir pendaftaran.
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="closePublicQrAutoScanner()" class="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold">Tutup Kamera</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HIDDEN PRINT AREA FOR A4 CR80 SHEETS -->
+  <div id="print-area" class="hidden"></div>
+
+  <script>
+    const STORAGE_KEY = 'farid_studio_member_db_v4';
+    const DEFAULT_PIN_PLAIN = '12345';
+    const DEFAULT_MASTER_KEY_PLAIN = 'FARID-VIP';
+
+    const THEME_PRESETS = {
+      'teal-modern': { primary: '#008ba3', accent: '#12a3bd', dark: '#0b2239' },
+      'exclusive-vip': { primary: '#b45309', accent: '#f59e0b', dark: '#090d16' },
+      'royal-navy': { primary: '#1d4ed8', accent: '#eab308', dark: '#0f172a' },
+      'emerald-prestige': { primary: '#047857', accent: '#10b981', dark: '#062c22' },
+      'pearl-minimal': { primary: '#334155', accent: '#0284c7', dark: '#1e293b' }
+    };
+
+    const CARD_DESIGN_LABELS = {
+      'teal-modern': 'Teal Modern (Biru Putih)',
+      'exclusive-vip': 'Exclusive VIP (Hitam Emas)',
+      'royal-navy': 'Royal Navy & Gold',
+      'emerald-prestige': 'Emerald Studio Prestige',
+      'pearl-minimal': 'Pearl White Minimalist'
+    };
+
+    const DEFAULT_DESIGN = {
+      theme: 'teal-modern',
+      brandTitle: 'FARID STUDIO',
+      phoneText: '085241483041',
+      primaryColor: '#008ba3',
+      accentColor: '#12a3bd',
+      darkColor: '#0b2239',
+      titleSize: 48,
+      qrSize: 155,
+      badgeLabel: 'KARTU MEMBER',
+      serialPrefix: 'FS',
+      packageDisplay: '',
+      cardCaption: 'Tunjukkan kartu ini untuk diskon sesi foto & cetak di Farid Studio.',
+      qrLabel: 'SCAN AKTIVASI / CEK KARTU',
+      backTitle: 'SYARAT & KETENTUAN MEMBER',
+      instagram: '@faridstudiomakassar',
+      hashtag: '#AbadikanMomenBersamaFaridStudio',
+      addressMain: 'Jl. Perintis Kemerdekaan Km.16 No.49 Sudiang Makassar',
+      addressBranch: 'Cabang: Jl. Poros Taman Sudiang Indah Makassar'
+    };
+
+    const DEFAULT_PACKAGES = [
+      { id: 'Umum', prefix: 'FS', cardLabel: 'Paket: Umum', name: 'Paket Umum', price: 50000, duration: '1 Tahun', badge: 'Reguler', color: 'cyan', benefits: 'Diskon 10% semua sesi foto, gratis cetak 2R (2 lembar), prioritas antrean.' },
+      { id: 'Mahasiswa', prefix: 'MHS', cardLabel: 'Paket: Mahasiswa', name: 'Paket Mahasiswa', price: 35000, duration: '1 Tahun', badge: 'Hemat Pelajar', color: 'sky', benefits: 'Diskon 15% pas foto & studio, gratis softfile edit, wajib kartu mahasiswa.' },
+      { id: 'Wisudawan', prefix: 'WSD', cardLabel: 'Paket: Wisudawan', name: 'Paket Wisudawan', price: 150000, duration: '2 Tahun', badge: 'Terlaris', color: 'indigo', benefits: 'Diskon 20% paket wisuda keluarga, gratis 1 cetak 10R + frame, akses fast-track.' },
+      { id: 'VIP', prefix: 'VIP', cardLabel: 'Paket: VIP Studio', name: 'Paket VIP Studio', price: 300000, duration: '3 Tahun', badge: 'VIP Member', color: 'emerald', benefits: 'Diskon 25% semua layanan, gratis 1x sesi mini studio/tahun, bebas biaya reschedule.' },
+      { id: 'Exclusive', prefix: 'EXC', cardLabel: 'Paket: Exclusive Gold', name: 'Paket Exclusive (0001–1000)', price: 500000, duration: 'Seumur Hidup', badge: 'VIP Gold Limited', color: 'amber', benefits: 'Kartu edisi terbatas Gold VIP, diskon 30% selamanya, gratis sesi foto ulang tahun.' }
+    ];
+
+    const state = {
+      pinHash: '',
+      masterKeyHash: '',
+      adminUnlocked: false,
+      pendingTargetTab: null,
+      failedAttempts: 0,
+      lockoutUntil: 0,
+      lockoutInterval: null,
+      idleSecondsLeft: 300,
+      idleInterval: null,
+      autoLockOnBlur: true,
+      securityLogs: [],
+      design: { ...DEFAULT_DESIGN },
+      packages: JSON.parse(JSON.stringify(DEFAULT_PACKAGES)),
+      members: [],
+      attendanceLogs: [],
+      cameraStream: null,
+      cameraScanTimer: null,
+      publicQrStream: null,
+      publicQrTimer: null
+    };
+
+    function escapeHtml(str) {
+      return String(str ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+      const colors = {
+        success: 'bg-emerald-900 border-emerald-500 text-white',
+        error: 'bg-rose-900 border-rose-500 text-white',
+        info: 'bg-slate-900 border-cyan-500 text-white'
+      };
+      const icons = {
+        success: 'fa-circle-check text-emerald-400',
+        error: 'fa-circle-exclamation text-rose-400',
+        info: 'fa-circle-info text-cyan-400'
+      };
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto border-l-4 ${colors[type] || colors.info} px-4 py-3 rounded-xl shadow-xl text-xs font-semibold flex items-center gap-2.5 transition-all`;
+      toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} text-sm"></i><span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    async function sha256Hex(text) {
+      const data = new TextEncoder().encode(String(text));
+      if (window.crypto && window.crypto.subtle) {
+        const hashBuf = await window.crypto.subtle.digest('SHA-256', data);
+        return Array.from(new Uint8Array(hashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+      let h = 0;
+      for (let i = 0; i < text.length; i++) h = ((h << 5) - h) + text.charCodeAt(i);
+      return 'fallback_' + Math.abs(h).toString(16);
+    }
+
+    function formatSerialDigits(num) {
+      const n = Math.max(1, parseInt(num, 10) || 1);
+      return n < 10000 ? String(n).padStart(4, '0') : String(n);
+    }
+
+    function normalizeCardNumber(raw, defaultPrefix) {
+      const cleaned = String(raw || '').trim().toUpperCase();
+      if (!cleaned) return '';
+      const pref = (defaultPrefix || state.design.serialPrefix || 'FS').toUpperCase();
+      if (/^\d+$/.test(cleaned)) {
+        return `${pref}-${formatSerialDigits(cleaned)}`;
+      }
+      const match = cleaned.match(/^([A-Z0-9]+)-?(\d+)$/);
+      if (match) {
+        return `${match[1]}-${formatSerialDigits(match[2])}`;
+      }
+      return cleaned;
+    }
+
+    function getCardDesignLabel(themeKey) {
+      return CARD_DESIGN_LABELS[themeKey] || themeKey || 'Teal Modern (Biru Putih)';
+    }
+
+    function addSecurityLog(action, level = 'INFO') {
+      const ts = new Date().toLocaleString('id-ID', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+      state.securityLogs.unshift({ ts, action, level });
+      if (state.securityLogs.length > 80) state.securityLogs.length = 80;
+    }
+
+    function seedInitialMembers() {
+      return [
+        {
+          cardNumber: 'FS-0001',
+          name: 'Andi Muhammad Farid',
+          phone: '085241483041',
+          category: 'Exclusive',
+          cardDesign: 'Exclusive VIP (Hitam Emas)',
+          org: 'Farid Studio Makassar',
+          address: 'Jl. Perintis Kemerdekaan Km.16 Sudiang',
+          nik: '7371110101950001',
+          kkNumber: '7371110101180001',
+          kkRelation: 'Kepala Keluarga',
+          ktpAddress: 'Jl. Perintis Kemerdekaan Km.16 No.49 Sudiang Makassar',
+          status: 'AKTIF',
+          registeredAt: '01 Jan 2026',
+          notes: 'Founder VIP Member'
+        },
+        {
+          cardNumber: 'FS-0002',
+          name: 'Siti Nurhaliza Putri',
+          phone: '081342998877',
+          category: 'Wisudawan',
+          cardDesign: 'Teal Modern (Biru Putih)',
+          org: 'Universitas Hasanuddin',
+          address: 'Tamalanrea, Makassar',
+          nik: '',
+          kkNumber: '',
+          kkRelation: 'Anak',
+          ktpAddress: '',
+          status: 'AKTIF',
+          registeredAt: '14 Feb 2026',
+          notes: 'Paket Wisuda Keluarga'
+        }
+      ];
+    }
+
+    async function loadDatabaseFromStorage() {
+      const defaultPinHash = await sha256Hex(DEFAULT_PIN_PLAIN);
+      const defaultMkHash = await sha256Hex(DEFAULT_MASTER_KEY_PLAIN);
+      state.pinHash = defaultPinHash;
+      state.masterKeyHash = defaultMkHash;
+
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.pinHash) state.pinHash = parsed.pinHash;
+          if (parsed.masterKeyHash) state.masterKeyHash = parsed.masterKeyHash;
+          if (typeof parsed.autoLockOnBlur === 'boolean') state.autoLockOnBlur = parsed.autoLockOnBlur;
+          if (Array.isArray(parsed.securityLogs)) state.securityLogs = parsed.securityLogs;
+          if (parsed.design) state.design = { ...DEFAULT_DESIGN, ...parsed.design };
+          if (Array.isArray(parsed.packages) && parsed.packages.length > 0) state.packages = parsed.packages;
+          if (Array.isArray(parsed.members)) state.members = parsed.members;
+          if (Array.isArray(parsed.attendanceLogs)) state.attendanceLogs = parsed.attendanceLogs;
+        } else {
+          state.members = seedInitialMembers();
+          saveDatabaseToStorage();
+        }
+      } catch (e) {
+        state.members = seedInitialMembers();
+      }
+      populatePackageSelects();
+    }
+
+    function saveDatabaseToStorage() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          pinHash: state.pinHash,
+          masterKeyHash: state.masterKeyHash,
+          autoLockOnBlur: state.autoLockOnBlur,
+          securityLogs: state.securityLogs,
+          design: state.design,
+          packages: state.packages,
+          members: state.members,
+          attendanceLogs: state.attendanceLogs
+        }));
+      } catch (e) {
+        console.warn('Gagal menyimpan ke localStorage:', e);
+      }
+    }
+
+    function populatePackageSelects() {
+      const regSel = document.getElementById('reg-category');
+      const prevSel = document.getElementById('des-preview-package');
+      const batchSel = document.getElementById('batch-package');
+
+      if (regSel) {
+        const cur = regSel.value;
+        regSel.innerHTML = state.packages.map(p =>
+          `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)} (${escapeHtml(p.prefix || 'FS')}-XXXX)</option>`
+        ).join('');
+        if (cur && state.packages.some(p => p.id === cur)) regSel.value = cur;
+      }
+
+      [prevSel, batchSel].forEach(sel => {
+        if (!sel) return;
+        const cur = sel.value;
+        sel.innerHTML = state.packages.map(p =>
+          `<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`
+        ).join('');
+        if (cur && state.packages.some(p => p.id === cur)) sel.value = cur;
+      });
+    }
+
+    function openAdminTab(tabId) {
+      if (!state.adminUnlocked) {
+        openPinModal(tabId);
+        return;
+      }
+      switchTab(tabId);
+    }
+
+    function openPinModal(targetTab = 'admin') {
+      state.pendingTargetTab = targetTab;
+      const modal = document.getElementById('pin-modal');
+      const pinInput = document.getElementById('admin-pin-input');
+      const mkInput = document.getElementById('admin-master-key-input');
+      if (pinInput) pinInput.value = '';
+      if (mkInput) mkInput.value = '';
+      updateLockoutUi();
+      modal?.classList.remove('hidden');
+      setTimeout(() => pinInput?.focus(), 60);
+    }
+
+    function closePinModal() {
+      document.getElementById('pin-modal')?.classList.add('hidden');
+    }
+
+    function updateLockoutUi() {
+      const banner = document.getElementById('pin-lockout-banner');
+      const timerEl = document.getElementById('pin-lockout-timer');
+      const verifyBtn = document.getElementById('btn-verify-admin');
+      const now = Date.now();
+      if (state.lockoutUntil > now) {
+        const secs = Math.ceil((state.lockoutUntil - now) / 1000);
+        if (banner) banner.classList.remove('hidden');
+        if (timerEl) timerEl.textContent = secs;
+        if (verifyBtn) verifyBtn.disabled = true;
+      } else {
+        if (banner) banner.classList.add('hidden');
+        if (verifyBtn) verifyBtn.disabled = false;
+      }
+    }
+
+    async function verifyAdminPin() {
+      const now = Date.now();
+      if (state.lockoutUntil > now) {
+        updateLockoutUi();
+        return;
+      }
+      const pinVal = (document.getElementById('admin-pin-input')?.value || '').trim();
+      const mkVal = (document.getElementById('admin-master-key-input')?.value || '').trim().toUpperCase();
+
+      const enteredPinHash = await sha256Hex(pinVal);
+      const enteredMkHash = await sha256Hex(mkVal);
+
+      if (enteredPinHash === state.pinHash && enteredMkHash === state.masterKeyHash) {
+        state.failedAttempts = 0;
+        state.lockoutUntil = 0;
+        state.adminUnlocked = true;
+        addSecurityLog('Login Admin 2FA berhasil', 'INFO');
+        saveDatabaseToStorage();
+        closePinModal();
+        syncAdminLockStates();
+        startAdminIdleTimer();
+        showToast('Akses Admin Super Ketat berhasil dibuka!', 'success');
+        if (state.pendingTargetTab) {
+          const nextTab = state.pendingTargetTab;
+          state.pendingTargetTab = null;
+          switchTab(nextTab);
+        }
+      } else {
+        state.failedAttempts += 1;
+        addSecurityLog(`Percobaan login Admin gagal (${state.failedAttempts}/3)`, 'WARN');
+        if (state.failedAttempts >= 3) {
+          state.lockoutUntil = Date.now() + 60000;
+          state.failedAttempts = 0;
+          addSecurityLog('Kunci sementara 60 detik aktif karena 3x gagal login', 'ALERT');
+          if (state.lockoutInterval) clearInterval(state.lockoutInterval);
+          state.lockoutInterval = setInterval(() => {
+            updateLockoutUi();
+            if (Date.now() >= state.lockoutUntil) {
+              clearInterval(state.lockoutInterval);
+            }
+          }, 500);
+        }
+        saveDatabaseToStorage();
+        updateLockoutUi();
+        showToast('PIN Admin atau Master Security Key salah!', 'error');
+      }
+    }
+
+    function startAdminIdleTimer() {
+      state.idleSecondsLeft = 300;
+      if (state.idleInterval) clearInterval(state.idleInterval);
+      state.idleInterval = setInterval(() => {
+        if (!state.adminUnlocked) {
+          clearInterval(state.idleInterval);
+          return;
+        }
+        state.idleSecondsLeft -= 1;
+        const mins = String(Math.floor(Math.max(0, state.idleSecondsLeft) / 60)).padStart(2, '0');
+        const secs = String(Math.max(0, state.idleSecondsLeft) % 60).padStart(2, '0');
+        const cdEl = document.getElementById('admin-idle-countdown');
+        if (cdEl) cdEl.textContent = `${mins}:${secs}`;
+        if (state.idleSecondsLeft <= 0) {
+          lockAdminSession('Otomatis terkunci karena idle 5 menit');
+        }
+      }, 1000);
+    }
+
+    function resetAdminIdleTimer() {
+      if (state.adminUnlocked) {
+        state.idleSecondsLeft = 300;
+      }
+    }
+
+    function lockAdminSession(reason = 'Sesi Admin dikunci') {
+      state.adminUnlocked = false;
+      if (state.idleInterval) clearInterval(state.idleInterval);
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach(t => t.stop());
+        state.cameraStream = null;
+      }
+      addSecurityLog(reason, 'INFO');
+      saveDatabaseToStorage();
+      syncAdminLockStates();
+      const activeAdminTab = ['admin', 'design', 'excel', 'attendance'].some(id => {
+        const el = document.getElementById(`tab-${id}`);
+        return el && !el.classList.contains('hidden');
+      });
+      if (activeAdminTab) switchTab('mass-qr');
+      showToast(reason, 'info');
+    }
+
+    function toggleBlurAutoLock(enabled) {
+      state.autoLockOnBlur = !!enabled;
+      saveDatabaseToStorage();
+    }
+
+    function syncAdminLockStates() {
+      const unlocked = state.adminUnlocked;
+      document.querySelectorAll('.admin-only-nav').forEach(btn => {
+        btn.classList.toggle('hidden', !unlocked);
+      });
+      document.getElementById('nav-admin-login-btn')?.classList.toggle('hidden', unlocked);
+      document.getElementById('nav-admin-lock-btn')?.classList.toggle('hidden', !unlocked);
+
+      const mobileBtn = document.getElementById('mobile-admin-btn');
+      if (mobileBtn) {
+        mobileBtn.innerHTML = unlocked
+          ? '<i class="fa-solid fa-unlock mr-1 text-emerald-400"></i> Aktif'
+          : '<i class="fa-solid fa-lock mr-1"></i> Admin';
+      }
+
+      document.getElementById('admin-locked-view')?.classList.toggle('hidden', unlocked);
+      document.getElementById('admin-unlocked-view')?.classList.toggle('hidden', !unlocked);
+      document.getElementById('print-locked-notice')?.classList.toggle('hidden', unlocked);
+      document.getElementById('print-unlocked-panel')?.classList.toggle('hidden', !unlocked);
+      document.getElementById('excel-locked-notice')?.classList.toggle('hidden', unlocked);
+      document.getElementById('excel-unlocked-panel')?.classList.toggle('hidden', !unlocked);
+      document.getElementById('attendance-locked-notice')?.classList.toggle('hidden', unlocked);
+      document.getElementById('attendance-unlocked-panel')?.classList.toggle('hidden', !unlocked);
+
+      if (unlocked) {
+        renderAdminMemberTable();
+        renderExcelTable();
+        renderPackagesGrid();
+        renderAttendanceTable();
+      }
+    }
+
+    function openChangePinModal() {
+      if (!state.adminUnlocked) return;
+      document.getElementById('new-admin-pin-input').value = '';
+      document.getElementById('new-master-key-input').value = '';
+      document.getElementById('change-pin-modal')?.classList.remove('hidden');
+    }
+
+    async function saveNewAdminPin() {
+      if (!state.adminUnlocked) return;
+      const newPin = (document.getElementById('new-admin-pin-input')?.value || '').trim();
+      const newMk = (document.getElementById('new-master-key-input')?.value || '').trim().toUpperCase();
+      if (newPin.length < 4 || newMk.length < 4) {
+        showToast('PIN baru dan Master Key baru masing-masing minimal 4 karakter!', 'error');
+        return;
+      }
+      state.pinHash = await sha256Hex(newPin);
+      state.masterKeyHash = await sha256Hex(newMk);
+      addSecurityLog('Kredensial PIN Admin & Master Key diperbarui', 'WARN');
+      saveDatabaseToStorage();
+      document.getElementById('change-pin-modal')?.classList.add('hidden');
+      showToast('PIN Admin & Master Security Key baru berhasil disimpan!', 'success');
+    }
+
+    function openSecurityAuditModal() {
+      if (!state.adminUnlocked) return;
+      const list = document.getElementById('security-audit-list');
+      if (list) {
+        list.innerHTML = state.securityLogs.length === 0
+          ? '<div class="p-4 text-center text-slate-400">Belum ada log aktivitas keamanan.</div>'
+          : state.securityLogs.map(item => `
+              <div class="p-3 flex items-center justify-between gap-2">
+                <div>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold mr-1.5 ${item.level === 'ALERT' ? 'bg-rose-100 text-rose-800' : item.level === 'WARN' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'}">${escapeHtml(item.level)}</span>
+                  <span class="font-medium text-slate-800">${escapeHtml(item.action)}</span>
+                </div>
+                <span class="font-mono text-[11px] text-slate-400 whitespace-nowrap">${escapeHtml(item.ts)}</span>
+              </div>
+            `).join('');
+      }
+      document.getElementById('security-audit-modal')?.classList.remove('hidden');
+    }
+
+    async function openPublicQrAutoScanner(sourceTab = 'register') {
+      const modal = document.getElementById('public-qr-scanner-modal');
+      const video = document.getElementById('public-qr-video');
+      if (!modal || !video) return;
+
+      closePublicQrAutoScanner();
+      modal.classList.remove('hidden');
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        state.publicQrStream = stream;
+        video.srcObject = stream;
+        await video.play();
+
+        const scanCanvas = document.createElement('canvas');
+        const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+
+        state.publicQrTimer = setInterval(() => {
+          if (!state.publicQrStream || video.readyState < 2 || !video.videoWidth) return;
+          try {
+            scanCanvas.width = video.videoWidth;
+            scanCanvas.height = video.videoHeight;
+            scanCtx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+            if (typeof jsQR !== 'undefined') {
+              const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+              const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
+              if (code && code.data) {
+                closePublicQrAutoScanner();
+                applyScannedRegistrationQr(code.data);
+              }
+            }
+          } catch (e) {}
+        }, 320);
+      } catch (err) {
+        closePublicQrAutoScanner();
+        if (sourceTab !== 'register') switchTab('register');
+        showToast('Kamera tidak tersedia. Silakan ketik Nomor Seri Kartu Anda secara manual.', 'info');
+        document.getElementById('reg-card-number')?.focus();
+      }
+    }
+
+    function closePublicQrAutoScanner() {
+      if (state.publicQrTimer) {
+        clearInterval(state.publicQrTimer);
+        state.publicQrTimer = null;
+      }
+      if (state.publicQrStream) {
+        state.publicQrStream.getTracks().forEach(t => t.stop());
+        state.publicQrStream = null;
+      }
+      document.getElementById('public-qr-scanner-modal')?.classList.add('hidden');
+    }
+
+    function applyScannedRegistrationQr(rawData) {
+      switchTab('register');
+      const cardNo = extractCardNumberFromScan(rawData);
+      const cardInput = document.getElementById('reg-card-number');
+      const autoBadge = document.getElementById('reg-qr-auto-badge');
+
+      if (cardNo && cardNo !== 'HTTP' && !cardNo.startsWith('HTTP')) {
+        if (cardInput) cardInput.value = cardNo;
+        autoBadge?.classList.remove('hidden');
+
+        const prefixMatch = cardNo.match(/^([A-Z0-9]+)-/);
+        if (prefixMatch) {
+          const matchedPkg = state.packages.find(p => (p.prefix || '').toUpperCase() === prefixMatch[1]);
+          const catSelect = document.getElementById('reg-category');
+          if (matchedPkg && catSelect) catSelect.value = matchedPkg.id;
+        }
+        handleRegCardNumberInput(cardNo);
+        showToast(`QR Kartu ${cardNo} terbaca otomatis!`, 'success');
+      } else {
+        autoBadge?.classList.add('hidden');
+        renderInitialRegCardPreview();
+        showToast('QR Daftar Otomatis terbuka! Masukkan Nomor Seri Kartu Anda.', 'success');
+        cardInput?.focus();
+      }
+    }
+
+    function switchTab(tabId) {
+      const adminTabs = ['admin', 'design', 'excel', 'attendance'];
+      if (adminTabs.includes(tabId) && !state.adminUnlocked) {
+        openPinModal(tabId);
+        return;
+      }
+
+      document.querySelectorAll('.tab-content').forEach(sec => sec.classList.add('hidden'));
+      const target = document.getElementById(`tab-${tabId}`);
+      if (target) target.classList.remove('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('bg-cyan-600', 'text-white', 'shadow-sm', 'font-bold');
+        btn.classList.add('text-slate-600', 'hover:text-slate-900', 'font-semibold');
+      });
+      const activeBtn = document.getElementById(`nav-${tabId}`);
+      if (activeBtn) {
+        activeBtn.classList.remove('text-slate-600', 'hover:text-slate-900', 'font-semibold');
+        activeBtn.classList.add('bg-cyan-600', 'text-white', 'shadow-sm', 'font-bold');
+      }
+
+      if (tabId === 'design' && state.adminUnlocked) {
+        loadDesignControlsFromState();
+        renderCr80StudioPreviews();
+      } else if (tabId === 'excel' && state.adminUnlocked) {
+        renderExcelTable();
+      } else if (tabId === 'attendance' && state.adminUnlocked) {
+        renderPackagesGrid();
+        renderAttendanceTable();
+      } else if (tabId === 'admin' && state.adminUnlocked) {
+        renderAdminMemberTable();
+      }
+    }
+
+    function getMassRegistrationUrl() {
+      const base = window.location.href.split('#')[0].split('?')[0];
+      return `${base}#daftar`;
+    }
+
+    function initMassQrBox() {
+      const url = getMassRegistrationUrl();
+      const input = document.getElementById('mass-qr-url-input');
+      if (input) input.value = url;
+      const box = document.getElementById('mass-qr-box');
+      if (box && typeof QRCode !== 'undefined') {
+        box.innerHTML = '';
+        new QRCode(box, { text: url, width: 176, height: 176, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+      }
+    }
+
+    function copyMassQrUrl() {
+      const input = document.getElementById('mass-qr-url-input');
+      if (!input) return;
+      input.select();
+      document.execCommand('copy');
+      showToast('Tautan QR Massal berhasil disalin!', 'success');
+    }
+
+    function downloadMassQrPoster() {
+      const qrCanvas = document.querySelector('#mass-qr-box canvas');
+      if (!qrCanvas) {
+        showToast('QR belum siap diunduh.', 'error');
+        return;
+      }
+      const poster = document.createElement('canvas');
+      poster.width = 900;
+      poster.height = 1200;
+      const ctx = poster.getContext('2d');
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 900, 1200);
+      ctx.fillStyle = '#008ba3';
+      ctx.fillRect(0, 0, 900, 26);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 28px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('FARID STUDIO MULTIMEDIA', 450, 120);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 54px Inter, sans-serif';
+      ctx.fillText('SCAN QR DAFTAR MEMBER', 450, 195);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.roundRect(210, 270, 480, 480, 32);
+      ctx.fill();
+      ctx.drawImage(qrCanvas, 250, 310, 400, 400);
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '600 26px Inter, sans-serif';
+      ctx.fillText('1. Scan QR Code dengan Kamera HP', 450, 840);
+      ctx.fillText('2. Masukkan Nomor Seri Kartu & Data Diri', 450, 895);
+      ctx.fillStyle = '#34d399';
+      ctx.font = '800 30px Inter, sans-serif';
+      ctx.fillText('3. KARTU MEMBER OTOMATIS AKTIF!', 450, 965);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '500 20px Inter, sans-serif';
+      ctx.fillText(state.design.addressMain, 450, 1090);
+
+      const link = document.createElement('a');
+      link.download = 'Poster_QR_Massal_FaridStudio.png';
+      link.href = poster.toDataURL('image/png');
+      link.click();
+      showToast('Poster QR Massal berhasil diunduh!', 'success');
+    }
+
+    function buildQrDataUrl(text, size = 160) {
+      return new Promise(resolve => {
+        const temp = document.createElement('div');
+        temp.style.position = 'fixed';
+        temp.style.left = '-9999px';
+        document.body.appendChild(temp);
+        new QRCode(temp, { text, width: size, height: size, colorDark: '#0b2239', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+        setTimeout(() => {
+          const canvas = temp.querySelector('canvas');
+          const url = canvas ? canvas.toDataURL('image/png') : '';
+          temp.remove();
+          resolve(url);
+        }, 30);
+      });
+    }
+
+    async function renderCr80DataUrl(side = 'front', options = {}) {
+      const d = state.design;
+      const w = 1011;
+      const h = 638;
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+
+      const cardNumber = options.cardNumber || `${d.serialPrefix || 'FS'}-0001`;
+      const pkgId = options.category || 'Umum';
+      const pkgObj = state.packages.find(p => p.id === pkgId);
+      const pkgDisplayText = (options.packageDisplay !== undefined ? options.packageDisplay : d.packageDisplay) || (pkgObj ? pkgObj.cardLabel : `Paket: ${pkgId}`);
+      const isDarkTheme = d.theme === 'exclusive-vip' || d.theme === 'royal-navy';
+
+      if (side === 'front') {
+        ctx.fillStyle = isDarkTheme ? d.darkColor : '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+
+        // Decorative geometric header wave
+        const grad = ctx.createLinearGradient(0, 0, w, 0);
+        grad.addColorStop(0, d.primaryColor);
+        grad.addColorStop(1, d.accentColor);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, w, 24);
+
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(w * 0.68, 0);
+        ctx.lineTo(w * 0.56, 175);
+        ctx.lineTo(0, 175);
+        ctx.closePath();
+        ctx.fillStyle = isDarkTheme ? 'rgba(255,255,255,0.06)' : 'rgba(0,139,163,0.08)';
+        ctx.fill();
+
+        // Brand title
+        ctx.fillStyle = isDarkTheme ? '#ffffff' : d.darkColor;
+        ctx.font = `900 ${d.titleSize || 48}px Inter, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.fillText(d.brandTitle || 'FARID STUDIO', 54, 102);
+
+        ctx.fillStyle = d.accentColor;
+        ctx.font = '700 21px Inter, sans-serif';
+        ctx.fillText(`MULTIMEDIA & PHOTOGRAPHY  •  ${d.phoneText || '085241483041'}`, 54, 138);
+
+        // Top right badge
+        ctx.fillStyle = d.primaryColor;
+        ctx.beginPath();
+        ctx.roundRect(w - 310, 48, 256, 48, 24);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 20px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(d.badgeLabel || 'KARTU MEMBER', w - 182, 79);
+
+        // Package pill
+        ctx.textAlign = 'left';
+        ctx.fillStyle = isDarkTheme ? 'rgba(245, 158, 11, 0.2)' : 'rgba(0, 139, 163, 0.12)';
+        ctx.beginPath();
+        ctx.roundRect(54, 195, 420, 46, 12);
+        ctx.fill();
+        ctx.fillStyle = isDarkTheme ? '#fbbf24' : d.primaryColor;
+        ctx.font = '800 22px Inter, sans-serif';
+        ctx.fillText(pkgDisplayText, 74, 225);
+
+        // Serial Number
+        ctx.fillStyle = isDarkTheme ? '#94a3b8' : '#64748b';
+        ctx.font = '700 18px Inter, sans-serif';
+        ctx.fillText('NOMOR SERI KARTU MEMBER', 54, 295);
+
+        ctx.fillStyle = isDarkTheme ? '#ffffff' : d.darkColor;
+        ctx.font = '700 56px "JetBrains Mono", monospace';
+        ctx.fillText(cardNumber, 54, 358);
+
+        // Caption
+        ctx.fillStyle = isDarkTheme ? '#cbd5e1' : '#475569';
+        ctx.font = '500 20px Inter, sans-serif';
+        const caption = d.cardCaption || '';
+        ctx.fillText(caption.slice(0, 54), 54, 420);
+        if (caption.length > 54) ctx.fillText(caption.slice(54, 108), 54, 448);
+
+        // Visual Barcode Strip
+        const barX = 54;
+        const barY = 485;
+        ctx.fillStyle = isDarkTheme ? '#ffffff' : '#0f172a';
+        for (let i = 0; i < 46; i++) {
+          const code = cardNumber.charCodeAt(i % cardNumber.length) + i * 7;
+          const bw = (code % 3) + 2;
+          if (i % 2 === 0) ctx.fillRect(barX + i * 9, barY, bw, 58);
+        }
+        ctx.font = '700 16px "JetBrains Mono", monospace';
+        ctx.fillText(`*${cardNumber}*`, 54, 568);
+
+        // QR Code Box
+        const qrSize = Number(d.qrSize || 155);
+        const qrBoxSize = qrSize + 28;
+        const qrX = w - qrBoxSize - 54;
+        const qrY = 230;
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = d.primaryColor;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(qrX, qrY, qrBoxSize, qrBoxSize, 20);
+        ctx.fill();
+        ctx.stroke();
+
+        const baseUrl = window.location.href.split('#')[0].split('?')[0];
+        const qrUrl = await buildQrDataUrl(`${baseUrl}?kartu=${encodeURIComponent(cardNumber)}#daftar`, qrSize);
+        if (qrUrl) {
+          const img = new Image();
+          img.src = qrUrl;
+          await new Promise(r => { img.onload = r; img.onerror = r; });
+          ctx.drawImage(img, qrX + 14, qrY + 14, qrSize, qrSize);
+        }
+
+        ctx.fillStyle = isDarkTheme ? '#e2e8f0' : d.darkColor;
+        ctx.font = '800 15px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(d.qrLabel || 'SCAN AKTIVASI / CEK KARTU', qrX + qrBoxSize / 2, qrY + qrBoxSize + 28);
+
+        // Bottom strip
+        ctx.fillStyle = d.primaryColor;
+        ctx.fillRect(0, h - 18, w, 18);
+      } else {
+        // BACK SIDE
+        ctx.fillStyle = d.darkColor;
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.fillStyle = d.primaryColor;
+        ctx.fillRect(0, 44, w, 72);
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '800 28px Inter, sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText(d.backTitle || 'SYARAT & KETENTUAN MEMBER', 54, 90);
+
+        const rules = [
+          '1. Kartu ini adalah kartu keanggotaan resmi Farid Studio Multimedia.',
+          '2. Tunjukkan fisik kartu atau kartu digital saat transaksi di kasir studio.',
+          '3. Berlaku untuk diskon sesi foto studio, wisuda, keluarga, dan cetak foto.',
+          '4. Aktivasi mandiri dapat dilakukan dengan memindai QR Code di sisi depan.',
+          '5. Kartu tidak dapat diuangkan dan berlaku sesuai masa aktif paket.'
+        ];
+        ctx.fillStyle = '#e2e8f0';
+        ctx.font = '500 21px Inter, sans-serif';
+        rules.forEach((line, idx) => {
+          ctx.fillText(line, 54, 175 + idx * 44);
+        });
+
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(54, 415);
+        ctx.lineTo(w - 54, 415);
+        ctx.stroke();
+
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = '700 21px Inter, sans-serif';
+        ctx.fillText(`Instagram: ${d.instagram || '@faridstudiomakassar'}   •   ${d.hashtag || '#AbadikanMomenBersamaFaridStudio'}`, 54, 462);
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '500 19px Inter, sans-serif';
+        ctx.fillText(`Studio Utama: ${d.addressMain || ''}`, 54, 512);
+        ctx.fillText(`${d.addressBranch || ''}`, 54, 546);
+
+        ctx.fillStyle = d.accentColor;
+        ctx.font = '700 22px "JetBrains Mono", monospace';
+        ctx.textAlign = 'right';
+        ctx.fillText(cardNumber, w - 54, 595);
+      }
+
+      return canvas.toDataURL('image/png');
+    }
+
+    async function handleRegCardNumberInput(rawVal) {
+      const normalized = normalizeCardNumber(rawVal);
+      const hint = document.getElementById('reg-card-hint');
+      const badge = document.getElementById('reg-live-status-badge');
+      const receiptBox = document.getElementById('ereceipt-box');
+
+      if (!normalized) {
+        if (hint) hint.textContent = 'Masukkan kode awalan & nomor kartu yang tertera di kartu Anda (contoh: FS-0001, VIP-0001, EXC-0001).';
+        if (receiptBox) receiptBox.classList.add('hidden');
+        renderInitialRegCardPreview();
+        return;
+      }
+
+      const existing = state.members.find(m => m.cardNumber.toUpperCase() === normalized.toUpperCase());
+      if (existing && existing.status === 'AKTIF') {
+        if (hint) hint.innerHTML = `<span class="text-emerald-700 font-bold">Nomor kartu ${escapeHtml(existing.cardNumber)} sudah AKTIF! Data asli pemilik ditampilkan di panel kanan.</span>`;
+        if (badge) {
+          badge.textContent = 'KARTU AKTIF';
+          badge.className = 'px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold';
+        }
+        if (receiptBox) {
+          receiptBox.classList.remove('hidden');
+          document.getElementById('er-card-no').textContent = existing.cardNumber;
+          document.getElementById('er-name').textContent = existing.name;
+          document.getElementById('er-category').textContent = existing.category;
+          document.getElementById('er-phone').textContent = existing.phone;
+          document.getElementById('er-org').textContent = existing.org || '-';
+          document.getElementById('er-date').textContent = existing.registeredAt || '-';
+        }
+        const imgUrl = await renderCr80DataUrl('front', { cardNumber: existing.cardNumber, category: existing.category });
+        const imgEl = document.getElementById('reg-live-card-img');
+        if (imgEl) imgEl.src = imgUrl;
+      } else {
+        if (hint) hint.innerHTML = `Nomor kartu <strong>${escapeHtml(normalized)}</strong> siap didaftarkan &amp; langsung menjadi <strong>AKTIF</strong>.`;
+        if (badge) {
+          badge.textContent = 'SIAP AKTIVASI';
+          badge.className = 'px-2.5 py-0.5 rounded-full bg-cyan-50 text-cyan-800 text-[11px] font-bold';
+        }
+        if (receiptBox) receiptBox.classList.add('hidden');
+        renderInitialRegCardPreview();
+      }
+    }
+
+    async function renderInitialRegCardPreview() {
+      const rawCard = document.getElementById('reg-card-number')?.value || '';
+      const cat = document.getElementById('reg-category')?.value || 'Umum';
+      const pkgObj = state.packages.find(p => p.id === cat);
+      const cardNo = normalizeCardNumber(rawCard, pkgObj?.prefix || state.design.serialPrefix) || `${pkgObj?.prefix || 'FS'}-0001`;
+      const imgUrl = await renderCr80DataUrl('front', { cardNumber: cardNo, category: cat });
+      const imgEl = document.getElementById('reg-live-card-img');
+      if (imgEl) imgEl.src = imgUrl;
+    }
+
+    async function handleMemberRegistration(e) {
+      e.preventDefault();
+      const rawCard = document.getElementById('reg-card-number')?.value || '';
+      const name = (document.getElementById('reg-name')?.value || '').trim();
+      const phone = (document.getElementById('reg-phone')?.value || '').trim();
+      const category = document.getElementById('reg-category')?.value || 'Umum';
+      const org = (document.getElementById('reg-org')?.value || '').trim() || '-';
+      const address = (document.getElementById('reg-address')?.value || '').trim() || '-';
+
+      const pkgObj = state.packages.find(p => p.id === category);
+      const cardNumber = normalizeCardNumber(rawCard, pkgObj?.prefix || state.design.serialPrefix);
+      if (!cardNumber || !name || !phone) {
+        showToast('Nomor kartu, nama lengkap, dan nomor WhatsApp wajib diisi!', 'error');
+        return;
+      }
+
+      const today = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+      const existingIdx = state.members.findIndex(m => m.cardNumber.toUpperCase() === cardNumber.toUpperCase());
+
+      const memberRecord = {
+        cardNumber,
+        name,
+        phone,
+        category,
+        cardDesign: existingIdx >= 0 ? (state.members[existingIdx].cardDesign || getCardDesignLabel(state.design.theme)) : getCardDesignLabel(state.design.theme),
+        org,
+        address,
+        nik: existingIdx >= 0 ? (state.members[existingIdx].nik || '') : '',
+        kkNumber: existingIdx >= 0 ? (state.members[existingIdx].kkNumber || '') : '',
+        kkRelation: existingIdx >= 0 ? (state.members[existingIdx].kkRelation || 'Kepala Keluarga') : 'Kepala Keluarga',
+        ktpAddress: existingIdx >= 0 ? (state.members[existingIdx].ktpAddress || '') : '',
+        status: 'AKTIF',
+        registeredAt: today,
+        notes: 'Aktivasi Mandiri Otomatis'
+      };
+
+      if (existingIdx >= 0) {
+        state.members[existingIdx] = memberRecord;
+      } else {
+        state.members.unshift(memberRecord);
+      }
+
+      saveDatabaseToStorage();
+      await handleRegCardNumberInput(cardNumber);
+      showToast(`Selamat ${name}! Kartu ${cardNumber} sekarang sudah AKTIF.`, 'success');
+    }
+
+    async function lookupMemberPortal(rawVal) {
+      const cardNumber = normalizeCardNumber(rawVal);
+      const emptyEl = document.getElementById('portal-result-empty');
+      const cardBox = document.getElementById('portal-result-card');
+      if (!cardNumber) {
+        emptyEl?.classList.remove('hidden');
+        cardBox?.classList.add('hidden');
+        return;
+      }
+
+      const member = state.members.find(m => m.cardNumber.toUpperCase() === cardNumber.toUpperCase());
+      if (!member) {
+        if (emptyEl) {
+          emptyEl.textContent = `Nomor seri kartu ${cardNumber} belum terdaftar dalam sistem.`;
+          emptyEl.classList.remove('hidden');
+        }
+        cardBox?.classList.add('hidden');
+        return;
+      }
+
+      emptyEl?.classList.add('hidden');
+      cardBox?.classList.remove('hidden');
+
+      const pill = document.getElementById('portal-status-pill');
+      if (pill) {
+        pill.textContent = member.status;
+        pill.className = member.status === 'AKTIF'
+          ? 'px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-100 text-emerald-800'
+          : 'px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-amber-100 text-amber-800';
+      }
+      document.getElementById('portal-card-code').textContent = member.cardNumber;
+      document.getElementById('portal-member-name').textContent = member.name;
+      document.getElementById('portal-member-meta').textContent = `Paket: ${member.category} • WA: ${member.phone} • Instansi: ${member.org || '-'} • Aktif: ${member.registeredAt || '-'}`;
+
+      const frontUrl = await renderCr80DataUrl('front', { cardNumber: member.cardNumber, category: member.category });
+      const backUrl = await renderCr80DataUrl('back', { cardNumber: member.cardNumber, category: member.category });
+      document.getElementById('portal-img-front').src = frontUrl;
+      document.getElementById('portal-img-back').src = backUrl;
+    }
+
+    async function downloadMemberDigitalPng(cardNumber, side = 'front') {
+      const member = state.members.find(m => m.cardNumber.toUpperCase() === String(cardNumber).toUpperCase());
+      const url = await renderCr80DataUrl(side, { cardNumber, category: member?.category || 'Umum' });
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `KartuMember_${cardNumber}_${side}.png`;
+      a.click();
+    }
+
+    function handleAutoAccInput(rawVal) {
+      if (!state.adminUnlocked) return;
+      const cleaned = rawVal.trim();
+      if (!/^\d{4,}$/.test(cleaned) && !/^[A-Z0-9]+-\d{4,}$/i.test(cleaned)) return;
+
+      const cardNumber = normalizeCardNumber(cleaned);
+      const feedback = document.getElementById('auto-acc-feedback');
+      const idx = state.members.findIndex(m => m.cardNumber.toUpperCase() === cardNumber.toUpperCase());
+      const today = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      if (idx >= 0) {
+        state.members[idx].status = 'AKTIF';
+        if (!state.members[idx].registeredAt || state.members[idx].registeredAt === '-') {
+          state.members[idx].registeredAt = today;
+        }
+      } else {
+        state.members.unshift({
+          cardNumber,
+          name: `Member ${cardNumber}`,
+          phone: '-',
+          category: 'Umum',
+          cardDesign: getCardDesignLabel(state.design.theme),
+          org: '-',
+          address: '-',
+          nik: '',
+          kkNumber: '',
+          kkRelation: 'Kepala Keluarga',
+          ktpAddress: '',
+          status: 'AKTIF',
+          registeredAt: today,
+          notes: 'Auto-ACC Admin'
+        });
+      }
+
+      saveDatabaseToStorage();
+      renderAdminMemberTable();
+      renderExcelTable();
+      if (feedback) {
+        feedback.className = 'rounded-xl p-3 text-xs bg-emerald-500/20 border border-emerald-400 text-emerald-200 font-bold';
+        feedback.innerHTML = `<i class="fa-solid fa-circle-check mr-1"></i> Kartu ${escapeHtml(cardNumber)} otomatis menjadi AKTIF (ACC)!`;
+        feedback.classList.remove('hidden');
+      }
+      document.getElementById('auto-acc-input').value = '';
+      showToast(`Kartu ${cardNumber} Auto-ACC AKTIF!`, 'success');
+    }
+
+    function renderAdminMemberTable() {
+      const tbody = document.getElementById('admin-member-tbody');
+      if (!tbody) return;
+      const q = (document.getElementById('admin-search-input')?.value || '').trim().toLowerCase();
+      const filtered = state.members.filter(m =>
+        !q ||
+        m.cardNumber.toLowerCase().includes(q) ||
+        m.name.toLowerCase().includes(q) ||
+        (m.nik && m.nik.includes(q)) ||
+        (m.kkNumber && m.kkNumber.includes(q))
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">Tidak ada data member yang sesuai pencarian.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(m => {
+        const hasKtp = m.nik || m.kkNumber;
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="p-3 font-mono font-bold text-cyan-700">${escapeHtml(m.cardNumber)}</td>
+            <td class="p-3 font-bold text-slate-900">${escapeHtml(m.name)}</td>
+            <td class="p-3">
+              ${hasKtp
+                ? `<div class="font-mono text-[11px] text-slate-700">NIK: <strong>${escapeHtml(m.nik || '-')}</strong><br/>KK: ${escapeHtml(m.kkNumber || '-')}</div>`
+                : `<span class="text-[11px] text-slate-400 italic">Belum diinput Admin</span>`
+              }
+            </td>
+            <td class="p-3 text-slate-700">${escapeHtml(m.phone || '-')}</td>
+            <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-bold">${escapeHtml(m.category)}</span></td>
+            <td class="p-3">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold ${m.status === 'AKTIF' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${escapeHtml(m.status)}</span>
+            </td>
+            <td class="p-3 text-right space-x-1 whitespace-nowrap">
+              <button onclick="openKtpModal('${escapeHtml(m.cardNumber)}')" class="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold">
+                <i class="fa-solid fa-id-card mr-1"></i> Kelola KTP
+              </button>
+              <button onclick="toggleMemberStatusAdmin('${escapeHtml(m.cardNumber)}')" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-bold">
+                ${m.status === 'AKTIF' ? 'Nonaktifkan' : 'ACC Aktif'}
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function toggleMemberStatusAdmin(cardNumber) {
+      if (!state.adminUnlocked) return;
+      const m = state.members.find(x => x.cardNumber === cardNumber);
+      if (!m) return;
+      m.status = m.status === 'AKTIF' ? 'BELUM_AKTIF' : 'AKTIF';
+      saveDatabaseToStorage();
+      renderAdminMemberTable();
+      renderExcelTable();
+      showToast(`Status kartu ${cardNumber} diubah menjadi ${m.status}.`, 'info');
+    }
+
+    function openKtpModal(cardNumber) {
+      if (!state.adminUnlocked) return;
+      const m = state.members.find(x => x.cardNumber === cardNumber);
+      if (!m) return;
+      document.getElementById('ktp-edit-card-no').value = m.cardNumber;
+      document.getElementById('ktp-modal-subtitle').textContent = `Nomor Kartu: ${m.cardNumber} — ${m.name}`;
+      document.getElementById('ktp-edit-nik').value = m.nik || '';
+      document.getElementById('ktp-edit-kk').value = m.kkNumber || '';
+      document.getElementById('ktp-edit-rel').value = m.kkRelation || 'Kepala Keluarga';
+      document.getElementById('ktp-edit-address').value = m.ktpAddress || m.address || '';
+      document.getElementById('ktp-modal')?.classList.remove('hidden');
+    }
+
+    function closeKtpModal() {
+      document.getElementById('ktp-modal')?.classList.add('hidden');
+    }
+
+    function saveKtpData() {
+      if (!state.adminUnlocked) return;
+      const cardNumber = document.getElementById('ktp-edit-card-no').value;
+      const m = state.members.find(x => x.cardNumber === cardNumber);
+      if (!m) return;
+      m.nik = document.getElementById('ktp-edit-nik').value.trim();
+      m.kkNumber = document.getElementById('ktp-edit-kk').value.trim();
+      m.kkRelation = document.getElementById('ktp-edit-rel').value;
+      m.ktpAddress = document.getElementById('ktp-edit-address').value.trim();
+      saveDatabaseToStorage();
+      closeKtpModal();
+      renderAdminMemberTable();
+      renderExcelTable();
+      showToast(`Data KTP & KK untuk ${cardNumber} berhasil disimpan.`, 'success');
+    }
+
+    function loadDesignControlsFromState() {
+      const d = state.design;
+      const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+      setVal('des-theme', d.theme);
+      setVal('des-package-display', d.packageDisplay || '');
+      setVal('des-brand-title', d.brandTitle);
+      setVal('des-phone-text', d.phoneText);
+      setVal('des-primary-color', d.primaryColor);
+      setVal('des-accent-color', d.accentColor);
+      setVal('des-dark-color', d.darkColor);
+      setVal('des-title-size', d.titleSize);
+      setVal('des-qr-size', d.qrSize);
+      setVal('des-badge-label', d.badgeLabel);
+      setVal('des-serial-prefix', d.serialPrefix);
+      setVal('des-card-caption', d.cardCaption);
+      setVal('des-qr-label', d.qrLabel);
+      setVal('des-back-title', d.backTitle);
+      setVal('des-ig', d.instagram);
+      setVal('des-hashtag', d.hashtag);
+      setVal('des-address-main', d.addressMain);
+      setVal('des-address-branch', d.addressBranch);
+      const lblTitle = document.getElementById('lbl-title-size');
+      const lblQr = document.getElementById('lbl-qr-size');
+      if (lblTitle) lblTitle.textContent = d.titleSize;
+      if (lblQr) lblQr.textContent = d.qrSize;
+    }
+
+    function applyThemePreset(themeKey) {
+      const preset = THEME_PRESETS[themeKey];
+      if (!preset) return;
+      state.design.theme = themeKey;
+      state.design.primaryColor = preset.primary;
+      state.design.accentColor = preset.accent;
+      state.design.darkColor = preset.dark;
+      loadDesignControlsFromState();
+      renderCr80StudioPreviews();
+    }
+
+    function liveUpdateDesignPreview() {
+      const getVal = id => document.getElementById(id)?.value;
+      state.design.theme = getVal('des-theme') || state.design.theme;
+      state.design.packageDisplay = getVal('des-package-display') ?? '';
+      state.design.brandTitle = getVal('des-brand-title') || 'FARID STUDIO';
+      state.design.phoneText = getVal('des-phone-text') || '';
+      state.design.primaryColor = getVal('des-primary-color') || '#008ba3';
+      state.design.accentColor = getVal('des-accent-color') || '#12a3bd';
+      state.design.darkColor = getVal('des-dark-color') || '#0b2239';
+      state.design.titleSize = Number(getVal('des-title-size') || 48);
+      state.design.qrSize = Number(getVal('des-qr-size') || 155);
+      state.design.badgeLabel = getVal('des-badge-label') || 'KARTU MEMBER';
+      state.design.serialPrefix = (getVal('des-serial-prefix') || 'FS').toUpperCase();
+      state.design.cardCaption = getVal('des-card-caption') || '';
+      state.design.qrLabel = getVal('des-qr-label') || '';
+      state.design.backTitle = getVal('des-back-title') || '';
+      state.design.instagram = getVal('des-ig') || '';
+      state.design.hashtag = getVal('des-hashtag') || '';
+      state.design.addressMain = getVal('des-address-main') || '';
+      state.design.addressBranch = getVal('des-address-branch') || '';
+      renderCr80StudioPreviews();
+    }
+
+    function saveDesignConfig(notify = false) {
+      liveUpdateDesignPreview();
+      saveDatabaseToStorage();
+      renderInitialRegCardPreview();
+      if (notify) showToast('Pengaturan desain kartu CR80 berhasil disimpan!', 'success');
+    }
+
+    function resetDesignConfig() {
+      state.design = { ...DEFAULT_DESIGN };
+      loadDesignControlsFromState();
+      saveDesignConfig(true);
+    }
+
+    async function renderCr80StudioPreviews() {
+      const pkgId = document.getElementById('des-preview-package')?.value || 'Umum';
+      const pkgObj = state.packages.find(p => p.id === pkgId);
+      const sampleNo = `${pkgObj?.prefix || state.design.serialPrefix || 'FS'}-0001`;
+      const frontUrl = await renderCr80DataUrl('front', { cardNumber: sampleNo, category: pkgId });
+      const backUrl = await renderCr80DataUrl('back', { cardNumber: sampleNo, category: pkgId });
+      const fEl = document.getElementById('studio-preview-front');
+      const bEl = document.getElementById('studio-preview-back');
+      if (fEl) fEl.src = frontUrl;
+      if (bEl) bEl.src = backUrl;
+    }
+
+    async function downloadStudioPreview(side) {
+      const pkgId = document.getElementById('des-preview-package')?.value || 'Umum';
+      const pkgObj = state.packages.find(p => p.id === pkgId);
+      const sampleNo = `${pkgObj?.prefix || state.design.serialPrefix || 'FS'}-0001`;
+      const url = await renderCr80DataUrl(side, { cardNumber: sampleNo, category: pkgId });
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `DesainCR80_${pkgId}_${side}.png`;
+      a.click();
+    }
+
+    function syncBatchPrefixFromPackage(pkgId) {
+      const pkg = state.packages.find(p => p.id === pkgId);
+      const prefInput = document.getElementById('batch-prefix');
+      if (pkg && prefInput) prefInput.value = pkg.prefix || 'FS';
+    }
+
+    function setBatchRange(start, end) {
+      document.getElementById('batch-start').value = start;
+      document.getElementById('batch-end').value = end;
+    }
+
+    function setNextUnlimitedBatch(count) {
+      const pref = (document.getElementById('batch-prefix')?.value || 'FS').toUpperCase();
+      let maxNum = 0;
+      state.members.forEach(m => {
+        const match = m.cardNumber.match(new RegExp(`^${pref}-(\\d+)$`, 'i'));
+        if (match) maxNum = Math.max(maxNum, parseInt(match[1], 10));
+      });
+      setBatchRange(maxNum + 1, maxNum + count);
+    }
+
+    function createBatchSlotsInDatabase() {
+      const pkgId = document.getElementById('batch-package')?.value || 'Umum';
+      const prefix = (document.getElementById('batch-prefix')?.value || 'FS').trim().toUpperCase() || 'FS';
+      const start = Math.max(1, parseInt(document.getElementById('batch-start')?.value, 10) || 1);
+      const end = Math.max(start, parseInt(document.getElementById('batch-end')?.value, 10) || start);
+      const designLabel = getCardDesignLabel(state.design.theme);
+      const createdCards = [];
+
+      for (let i = start; i <= end; i++) {
+        const cardNumber = `${prefix}-${formatSerialDigits(i)}`;
+        createdCards.push(cardNumber);
+        const existing = state.members.find(m => m.cardNumber.toUpperCase() === cardNumber);
+        if (existing) {
+          existing.category = pkgId;
+          existing.cardDesign = designLabel;
+        } else {
+          state.members.push({
+            cardNumber,
+            name: 'Slot Kartu Belum Terisi',
+            phone: '-',
+            category: pkgId,
+            cardDesign: designLabel,
+            org: '-',
+            address: '-',
+            nik: '',
+            kkNumber: '',
+            kkRelation: 'Kepala Keluarga',
+            ktpAddress: '',
+            status: 'BELUM_AKTIF',
+            registeredAt: '-',
+            notes: `Batch Cetak (${designLabel})`
+          });
+        }
+      }
+      saveDatabaseToStorage();
+      renderExcelTable();
+      renderAdminMemberTable();
+      return { createdCards, pkgId, designLabel };
+    }
+
+    function generateBatchSlotsOnly() {
+      if (!state.adminUnlocked) return;
+      const { createdCards } = createBatchSlotsInDatabase();
+      showToast(`${createdCards.length} nomor kartu otomatis disimpan ke Data Excel Admin!`, 'success');
+    }
+
+    async function generateBatchSlotsAndPrint() {
+      if (!state.adminUnlocked) return;
+      saveDesignConfig(false);
+      const { createdCards, pkgId } = createBatchSlotsInDatabase();
+      const progressBox = document.getElementById('batch-progress-box');
+      if (progressBox) {
+        progressBox.textContent = `Menyiapkan ${createdCards.length} kartu CR80 untuk cetak A4...`;
+        progressBox.classList.remove('hidden');
+      }
+
+      if (document.getElementById('chk-auto-export-excel')?.checked) {
+        exportMembersExcel(`DataMember_FaridStudio_AutoCetak_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      }
+
+      const printArea = document.getElementById('print-area');
+      if (!printArea) return;
+      printArea.innerHTML = '';
+
+      const grid = document.createElement('div');
+      grid.style.display = 'grid';
+      grid.style.gridTemplateColumns = 'repeat(2, 85.6mm)';
+      grid.style.gap = '4mm';
+      grid.style.justifyContent = 'center';
+
+      const imgPromises = [];
+      for (const cardNo of createdCards) {
+        const frontUrl = await renderCr80DataUrl('front', { cardNumber: cardNo, category: pkgId });
+        const backUrl = await renderCr80DataUrl('back', { cardNumber: cardNo, category: pkgId });
+
+        [frontUrl, backUrl].forEach(src => {
+          const img = document.createElement('img');
+          img.src = src;
+          img.style.width = '85.6mm';
+          img.style.height = '53.98mm';
+          img.style.border = '0.2mm solid #cbd5e1';
+          img.style.borderRadius = '3mm';
+          grid.appendChild(img);
+          if (img.decode) imgPromises.push(img.decode().catch(() => {}));
+        });
+      }
+
+      printArea.appendChild(grid);
+      await Promise.all(imgPromises);
+      if (progressBox) progressBox.classList.add('hidden');
+      window.print();
+    }
+
+    function renderExcelTable() {
+      const tbody = document.getElementById('excel-table-body');
+      if (!tbody) return;
+      const q = (document.getElementById('excel-search-input')?.value || '').trim().toLowerCase();
+      const filtered = state.members
+        .map((m, idx) => ({ m, idx }))
+        .filter(({ m }) =>
+          !q ||
+          m.cardNumber.toLowerCase().includes(q) ||
+          m.name.toLowerCase().includes(q) ||
+          (m.phone && m.phone.toLowerCase().includes(q)) ||
+          (m.cardDesign && m.cardDesign.toLowerCase().includes(q)) ||
+          (m.nik && m.nik.includes(q))
+        );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="11" class="p-6 text-center text-slate-400">Tidak ada baris data member di spreadsheet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(({ m, idx }) => `
+        <tr class="hover:bg-emerald-50/40">
+          <td class="p-2"><input type="text" value="${escapeHtml(m.cardNumber)}" onchange="updateExcelCell(${idx}, 'cardNumber', this.value)" class="w-24 px-2 py-1 rounded border border-slate-200 font-mono font-bold text-cyan-800" /></td>
+          <td class="p-2"><input type="text" value="${escapeHtml(m.name)}" onchange="updateExcelCell(${idx}, 'name', this.value)" class="w-40 px-2 py-1 rounded border border-slate-200 font-semibold" /></td>
+          <td class="p-2"><input type="text" value="${escapeHtml(m.phone || '')}" onchange="updateExcelCell(${idx}, 'phone', this.value)" class="w-32 px-2 py-1 rounded border border-slate-200" /></td>
+          <td class="p-2"><input type="text" value="${escapeHtml(m.category || '')}" onchange="updateExcelCell(${idx}, 'category', this.value)" class="w-24 px-2 py-1 rounded border border-slate-200" /></td>
+          <td class="p-2"><input type="text" value="${escapeHtml(m.cardDesign || getCardDesignLabel(state.design.theme))}" onchange="updateExcelCell(${idx}, 'cardDesign', this.value)" class="w-44 px-2 py-1 rounded border border-slate-200 text-indigo-700 font-semibold" /></td>
+          <td class="p-2"><input type="text" value="${escapeHtml(m.org || '')}" onchange="updateExcelCell(${idx}, 'org', this.value)" class="w-32 px-2 py-1 rounded border border-slate-200" /></td>
+          <td class="p-2"><input type="text" value="${escapeHtml(m.nik || '')}" onchange="updateExcelCell(${idx}, 'nik', this.value)" class="w-36 px-2 py-1 rounded border border-slate-200 font-mono" /></td>
+          <td class="p-2"><input type="text" value="${escapeHtml(m.kkNumber || '')}" onchange="updateExcelCell(${idx}, 'kkNumber', this.value)" class="w-36 px-2 py-1 rounded border border-slate-200 font-mono" /></td>
+          <td class="p-2">
+            <select onchange="updateExcelCell(${idx}, 'status', this.value)" class="px-2 py-1 rounded border border-slate-200 font-bold ${m.status === 'AKTIF' ? 'text-emerald-700 bg-emerald-50' : 'text-amber-700 bg-amber-50'}">
+              <option value="AKTIF" ${m.status === 'AKTIF' ? 'selected' : ''}>AKTIF</option>
+              <option value="BELUM_AKTIF" ${m.status !== 'AKTIF' ? 'selected' : ''}>BELUM_AKTIF</option>
+            </select>
+          </td>
+          <td class="p-2"><input type="text" value="${escapeHtml(m.notes || '')}" onchange="updateExcelCell(${idx}, 'notes', this.value)" class="w-36 px-2 py-1 rounded border border-slate-200" /></td>
+          <td class="p-2 text-right">
+            <button onclick="deleteMemberRow(${idx})" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus baris"><i class="fa-solid fa-trash-can"></i></button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function updateExcelCell(idx, field, val) {
+      if (!state.adminUnlocked || !state.members[idx]) return;
+      state.members[idx][field] = field === 'cardNumber' ? normalizeCardNumber(val) : val.trim();
+      saveDatabaseToStorage();
+      renderAdminMemberTable();
+    }
+
+    function deleteMemberRow(idx) {
+      if (!state.adminUnlocked || !state.members[idx]) return;
+      const removed = state.members[idx];
+      state.members.splice(idx, 1);
+      addSecurityLog(`Menghapus baris member ${removed.cardNumber} (${removed.name}) dari Excel`, 'WARN');
+      saveDatabaseToStorage();
+      renderExcelTable();
+      renderAdminMemberTable();
+      showToast(`Data ${removed.cardNumber} dihapus dari spreadsheet.`, 'info');
+    }
+
+    function requestClearAllExcelMembers() {
+      if (!state.adminUnlocked) {
+        openPinModal('excel');
+        return;
+      }
+      const bar = document.getElementById('excel-clear-confirm-bar');
+      const countEl = document.getElementById('excel-clear-count');
+      if (!bar) return;
+      if (state.members.length === 0) {
+        showToast('Data Excel member sudah kosong.', 'info');
+        return;
+      }
+      if (countEl) countEl.textContent = state.members.length;
+      bar.classList.remove('hidden');
+    }
+
+    function cancelClearAllExcelMembers() {
+      document.getElementById('excel-clear-confirm-bar')?.classList.add('hidden');
+    }
+
+    function confirmClearAllExcelMembers() {
+      if (!state.adminUnlocked) {
+        openPinModal('excel');
+        return;
+      }
+      const totalRemoved = state.members.length;
+      state.members = [];
+      addSecurityLog(`Menghapus SEMUA (${totalRemoved}) baris data Excel member`, 'ALERT');
+      saveDatabaseToStorage();
+      cancelClearAllExcelMembers();
+      renderExcelTable();
+      renderAdminMemberTable();
+      showToast(`Seluruh (${totalRemoved}) data member di Excel telah dihapus.`, 'info');
+    }
+
+    function addNewExcelRow() {
+      if (!state.adminUnlocked) return;
+      const nextNum = state.members.length + 1;
+      state.members.unshift({
+        cardNumber: `FS-${formatSerialDigits(nextNum)}`,
+        name: 'Member Baru',
+        phone: '-',
+        category: 'Umum',
+        cardDesign: getCardDesignLabel(state.design.theme),
+        org: '-',
+        address: '-',
+        nik: '',
+        kkNumber: '',
+        kkRelation: 'Kepala Keluarga',
+        ktpAddress: '',
+        status: 'AKTIF',
+        registeredAt: new Date().toLocaleDateString('id-ID'),
+        notes: 'Ditambahkan Admin'
+      });
+      saveDatabaseToStorage();
+      renderExcelTable();
+      renderAdminMemberTable();
+    }
+
+    function exportMembersExcel(customFilename) {
+      if (!state.adminUnlocked) {
+        openPinModal('excel');
+        return;
+      }
+      if (typeof XLSX === 'undefined') {
+        showToast('Library Excel belum siap.', 'error');
+        return;
+      }
+      const rows = state.members.map((m, idx) => ({
+        No: idx + 1,
+        'Nomor Kartu': m.cardNumber,
+        'Nama Lengkap': m.name,
+        'No. WhatsApp': m.phone || '-',
+        'Paket Member': m.category || 'Umum',
+        'Jenis Desain Kartu': m.cardDesign || getCardDesignLabel(state.design.theme),
+        'Instansi / Kampus': m.org || '-',
+        'NIK KTP': m.nik || '',
+        'Nomor KK': m.kkNumber || '',
+        'Status': m.status,
+        'Tanggal Aktif': m.registeredAt || '-',
+        'Catatan': m.notes || ''
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Data Member');
+      XLSX.writeFile(wb, customFilename || `DataMember_FaridStudio_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showToast('File Excel Data Member (.xlsx) berhasil diunduh!', 'success');
+    }
+
+    function importMembersExcel(event) {
+      if (!state.adminUnlocked) return;
+      const file = event.target.files?.[0];
+      if (!file || typeof XLSX === 'undefined') return;
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const sheet = wb.Sheets[wb.SheetNames[0]];
+          const json = XLSX.utils.sheet_to_json(sheet);
+          let importedCount = 0;
+          json.forEach(row => {
+            const rawCard = row['Nomor Kartu'] || row['No. Kartu'] || row['cardNumber'];
+            if (!rawCard) return;
+            const cardNumber = normalizeCardNumber(rawCard);
+            const record = {
+              cardNumber,
+              name: String(row['Nama Lengkap'] || row['Nama'] || 'Member Import'),
+              phone: String(row['No. WhatsApp'] || row['WhatsApp'] || '-'),
+              category: String(row['Paket Member'] || row['Paket'] || 'Umum'),
+              cardDesign: String(row['Jenis Desain Kartu'] || getCardDesignLabel(state.design.theme)),
+              org: String(row['Instansi / Kampus'] || '-'),
+              address: String(row['Alamat'] || '-'),
+              nik: String(row['NIK KTP'] || ''),
+              kkNumber: String(row['Nomor KK'] || ''),
+              kkRelation: 'Kepala Keluarga',
+              ktpAddress: '',
+              status: String(row['Status'] || 'AKTIF').toUpperCase() === 'AKTIF' ? 'AKTIF' : 'BELUM_AKTIF',
+              registeredAt: String(row['Tanggal Aktif'] || new Date().toLocaleDateString('id-ID')),
+              notes: String(row['Catatan'] || 'Import Excel')
+            };
+            const idx = state.members.findIndex(m => m.cardNumber.toUpperCase() === cardNumber.toUpperCase());
+            if (idx >= 0) state.members[idx] = record;
+            else state.members.push(record);
+            importedCount++;
+          });
+          saveDatabaseToStorage();
+          renderExcelTable();
+          renderAdminMemberTable();
+          showToast(`${importedCount} baris data berhasil diimpor dari Excel!`, 'success');
+        } catch (err) {
+          showToast('Gagal membaca file Excel. Pastikan format kolom sesuai.', 'error');
+        }
+        event.target.value = '';
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function renderPackagesGrid() {
+      const grid = document.getElementById('packages-grid');
+      if (!grid) return;
+      grid.innerHTML = state.packages.map(pkg => {
+        const isExclusive = pkg.id === 'Exclusive';
+        const formattedPrice = 'Rp ' + Number(pkg.price || 0).toLocaleString('id-ID');
+        return `
+          <div class="rounded-2xl border ${isExclusive ? 'border-amber-400 bg-gradient-to-b from-slate-900 to-slate-800 text-white shadow-lg' : 'border-slate-200 bg-white text-slate-900 shadow-sm'} p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-3">
+                <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${isExclusive ? 'bg-amber-400 text-slate-950' : 'bg-cyan-50 text-cyan-800'}">
+                  ${escapeHtml(pkg.prefix || 'FS')}-XXXX
+                </span>
+                <span class="text-[11px] font-semibold ${isExclusive ? 'text-slate-300' : 'text-slate-400'}">${escapeHtml(pkg.duration)}</span>
+              </div>
+              <h3 class="text-base font-extrabold ${isExclusive ? 'text-amber-300' : 'text-slate-900'}">${escapeHtml(pkg.name)}</h3>
+              <p class="text-2xl font-black mt-2 ${isExclusive ? 'text-white' : 'text-cyan-700'}">${formattedPrice}</p>
+              <p class="text-[11px] font-semibold mt-1 ${isExclusive ? 'text-amber-200/80' : 'text-indigo-600'}">${escapeHtml(pkg.cardLabel || '')}</p>
+              <p class="text-xs leading-relaxed mt-3 ${isExclusive ? 'text-slate-300' : 'text-slate-600'}">${escapeHtml(pkg.benefits)}</p>
+            </div>
+            <button onclick="selectPackageForRegistration('${escapeHtml(pkg.id)}')" class="mt-5 w-full py-2.5 px-3 rounded-xl text-xs font-bold transition ${isExclusive ? 'bg-amber-400 hover:bg-amber-300 text-slate-950' : 'bg-cyan-600 hover:bg-cyan-700 text-white'}">
+              <i class="fa-solid fa-arrow-right-to-bracket mr-1"></i> Pilih Paket Ini
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectPackageForRegistration(pkgId) {
+      switchTab('register');
+      const catSelect = document.getElementById('reg-category');
+      if (catSelect) {
+        catSelect.value = pkgId;
+        renderInitialRegCardPreview();
+      }
+    }
+
+    function togglePackageEditor() {
+      if (!state.adminUnlocked) {
+        openPinModal('attendance');
+        return;
+      }
+      const editor = document.getElementById('package-admin-editor');
+      if (!editor) return;
+      editor.classList.toggle('hidden');
+      if (!editor.classList.contains('hidden')) renderPackageEditorRows();
+    }
+
+    function renderPackageEditorRows() {
+      const container = document.getElementById('package-editor-rows');
+      if (!container) return;
+      container.innerHTML = state.packages.map((pkg, idx) => `
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-2.5 bg-white p-3.5 rounded-xl border border-slate-200 items-center">
+          <div class="md:col-span-2">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Kode Awalan</label>
+            <input type="text" id="pkg-edit-prefix-${idx}" value="${escapeHtml(pkg.prefix || 'FS')}" maxlength="8" class="w-full mt-1 px-3 py-1.5 rounded-lg border border-slate-300 font-mono text-xs font-bold uppercase" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Teks di Kartu</label>
+            <input type="text" id="pkg-edit-cardlabel-${idx}" value="${escapeHtml(pkg.cardLabel || `Paket: ${pkg.id}`)}" class="w-full mt-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Nama Paket</label>
+            <input type="text" id="pkg-edit-name-${idx}" value="${escapeHtml(pkg.name)}" class="w-full mt-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-semibold" />
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Harga (Rp)</label>
+            <input type="number" id="pkg-edit-price-${idx}" value="${Number(pkg.price || 0)}" class="w-full mt-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs font-mono font-bold" />
+          </div>
+          <div class="md:col-span-3">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase">Benefit &amp; Masa Aktif</label>
+            <input type="text" id="pkg-edit-ben-${idx}" value="${escapeHtml(pkg.benefits)}" class="w-full mt-1 px-3 py-1.5 rounded-lg border border-slate-300 text-xs" />
+          </div>
+          <div class="md:col-span-1 text-right pt-4">
+            <button onclick="deletePackageRow(${idx})" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 text-xs font-bold" title="Hapus paket"><i class="fa-solid fa-trash-can"></i></button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function addNewPackageRow() {
+      if (!state.adminUnlocked) return;
+      const num = state.packages.length + 1;
+      state.packages.push({
+        id: `Paket_${num}`,
+        prefix: `PKT${num}`,
+        cardLabel: `Paket: Custom ${num}`,
+        name: `Paket Baru ${num}`,
+        price: 75000,
+        duration: '1 Tahun',
+        badge: 'Baru',
+        color: 'cyan',
+        benefits: 'Benefit khusus member baru Farid Studio.'
+      });
+      renderPackageEditorRows();
+    }
+
+    function savePackageConfigs() {
+      if (!state.adminUnlocked) return;
+      state.packages.forEach((pkg, idx) => {
+        const prefEl = document.getElementById(`pkg-edit-prefix-${idx}`);
+        const lblEl = document.getElementById(`pkg-edit-cardlabel-${idx}`);
+        const nameEl = document.getElementById(`pkg-edit-name-${idx}`);
+        const priceEl = document.getElementById(`pkg-edit-price-${idx}`);
+        const benEl = document.getElementById(`pkg-edit-ben-${idx}`);
+
+        if (prefEl) pkg.prefix = (prefEl.value || pkg.prefix || 'FS').trim().toUpperCase();
+        if (lblEl) pkg.cardLabel = lblEl.value.trim() || `Paket: ${pkg.id}`;
+        if (nameEl) {
+          const newName = nameEl.value.trim();
+          if (newName) {
+            pkg.name = newName;
+            if (!pkg.id || pkg.id.startsWith('Paket_')) pkg.id = newName;
+          }
+        }
+        if (priceEl) pkg.price = Math.max(0, parseInt(priceEl.value, 10) || 0);
+        if (benEl) pkg.benefits = benEl.value.trim() || pkg.benefits;
+      });
+      populatePackageSelects();
+      saveDatabaseToStorage();
+      renderPackagesGrid();
+      renderInitialRegCardPreview();
+      document.getElementById('package-admin-editor')?.classList.add('hidden');
+      showToast('Pengaturan paket harga, kode seri & label kartu tersimpan!', 'success');
+    }
+
+    function deletePackageRow(idx) {
+      if (!state.adminUnlocked) return;
+      if (state.packages.length <= 1) {
+        showToast('Minimal harus ada 1 paket member yang aktif.', 'error');
+        return;
+      }
+      state.packages.splice(idx, 1);
+      populatePackageSelects();
+      saveDatabaseToStorage();
+      renderPackagesGrid();
+      renderPackageEditorRows();
+      showToast('Paket dihapus.', 'info');
+    }
+
+    function extractCardNumberFromScan(rawText) {
+      if (!rawText) return '';
+      const trimmed = String(rawText).trim();
+      const urlMatch = trimmed.match(/[?&]kartu=([A-Za-z0-9-]+)/i);
+      if (urlMatch && urlMatch[1]) return normalizeCardNumber(urlMatch[1]);
+      const fsMatch = trimmed.match(/([A-Z0-9]+-\d+)/i);
+      if (fsMatch && fsMatch[1]) return normalizeCardNumber(fsMatch[1]);
+      if (/^\d+$/.test(trimmed)) return normalizeCardNumber(trimmed);
+      return trimmed.toUpperCase();
+    }
+
+    function handleAttendanceScanInput(val) {
+      const cleaned = String(val || '').trim();
+      if (/^\d{4,}$/.test(cleaned) || /^[A-Z0-9]+-\d{4,}$/i.test(cleaned) || cleaned.includes('kartu=')) {
+        processAttendanceCheckIn(cleaned);
+      }
+    }
+
+    function processAttendanceCheckIn(rawInput) {
+      if (!state.adminUnlocked) {
+        openPinModal('attendance');
+        return;
+      }
+      const cardNo = extractCardNumberFromScan(rawInput);
+      const inputEl = document.getElementById('att-scan-input');
+      const feedbackEl = document.getElementById('att-scan-feedback');
+      if (!cardNo) return;
+
+      const member = state.members.find(m => m.cardNumber.toUpperCase() === cardNo.toUpperCase());
+      if (!member) {
+        if (feedbackEl) {
+          feedbackEl.className = 'rounded-xl p-3.5 text-xs border bg-rose-950/70 border-rose-500/50 text-rose-200';
+          feedbackEl.innerHTML = `<i class="fa-solid fa-circle-xmark text-rose-400 mr-1.5"></i> Nomor kartu <strong>${escapeHtml(cardNo)}</strong> tidak ditemukan di database.`;
+          feedbackEl.classList.remove('hidden');
+        }
+        if (inputEl) inputEl.value = '';
+        return;
+      }
+
+      if (member.status !== 'AKTIF') {
+        if (feedbackEl) {
+          feedbackEl.className = 'rounded-xl p-3.5 text-xs border bg-amber-950/70 border-amber-500/50 text-amber-200';
+          feedbackEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400 mr-1.5"></i> Kartu <strong>${escapeHtml(member.cardNumber)}</strong> berstatus <strong>${escapeHtml(member.status)}</strong>. Aktifkan terlebih dahulu di Auto-ACC atau Form Daftar.`;
+          feedbackEl.classList.remove('hidden');
+        }
+        if (inputEl) inputEl.value = '';
+        return;
+      }
+
+      const purpose = document.getElementById('att-purpose')?.value || 'Sesi Foto Studio';
+      const now = new Date();
+      const isoDate = now.toISOString().slice(0, 10);
+      const timeStr = now.toLocaleString('id-ID', {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+
+      state.attendanceLogs.unshift({
+        id: 'ATT-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        dateKey: isoDate,
+        timestamp: timeStr,
+        cardNumber: member.cardNumber,
+        name: member.name,
+        category: member.category || 'Umum',
+        phone: member.phone || '-',
+        purpose
+      });
+
+      saveDatabaseToStorage();
+      renderAttendanceTable();
+
+      if (feedbackEl) {
+        feedbackEl.className = 'rounded-xl p-3.5 text-xs border bg-emerald-950/80 border-emerald-500/60 text-emerald-200';
+        feedbackEl.innerHTML = `
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-emerald-300"><i class="fa-solid fa-circle-check mr-1"></i> CHECK-IN BERHASIL</span>
+            <span class="font-mono text-[11px] bg-emerald-500/20 px-2 py-0.5 rounded">${escapeHtml(member.cardNumber)}</span>
+          </div>
+          <p class="font-bold text-white text-sm mt-1">${escapeHtml(member.name)} <span class="text-xs font-normal text-emerald-300">(${escapeHtml(member.category)})</span></p>
+          <p class="text-[11px] text-emerald-200/80 mt-0.5">Keperluan: ${escapeHtml(purpose)} • ${escapeHtml(timeStr)}</p>
+        `;
+        feedbackEl.classList.remove('hidden');
+      }
+
+      if (inputEl) {
+        inputEl.value = '';
+        inputEl.focus();
+      }
+      showToast(`Kehadiran dicatat: ${member.name} (${member.cardNumber})`, 'success');
+    }
+
+    function renderAttendanceTable() {
+      const tbody = document.getElementById('attendance-table-body');
+      const query = (document.getElementById('att-search-input')?.value || '').trim().toLowerCase();
+      const todayKey = new Date().toISOString().slice(0, 10);
+
+      const todayCount = state.attendanceLogs.filter(l => l.dateKey === todayKey).length;
+      const uniqueCards = new Set(state.attendanceLogs.map(l => l.cardNumber)).size;
+
+      const statToday = document.getElementById('stat-att-today');
+      const statTotal = document.getElementById('stat-att-total');
+      const statUnique = document.getElementById('stat-att-unique');
+      if (statToday) statToday.textContent = todayCount;
+      if (statTotal) statTotal.textContent = state.attendanceLogs.length;
+      if (statUnique) statUnique.textContent = uniqueCards;
+
+      if (!tbody) return;
+      const filtered = state.attendanceLogs.filter(l =>
+        !query ||
+        l.cardNumber.toLowerCase().includes(query) ||
+        l.name.toLowerCase().includes(query) ||
+        l.purpose.toLowerCase().includes(query)
+      );
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">Belum ada data kehadiran member yang tercatat.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = filtered.map(log => `
+        <tr class="hover:bg-slate-50">
+          <td class="p-3 font-mono text-[11px] text-slate-600">${escapeHtml(log.timestamp)}</td>
+          <td class="p-3 font-mono font-bold text-cyan-700">${escapeHtml(log.cardNumber)}</td>
+          <td class="p-3 font-semibold text-slate-900">${escapeHtml(log.name)}</td>
+          <td class="p-3"><span class="px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[11px] font-semibold">${escapeHtml(log.category)}</span></td>
+          <td class="p-3 text-slate-700">${escapeHtml(log.purpose)}</td>
+          <td class="p-3 text-right">
+            <button onclick="deleteAttendanceLog('${escapeHtml(log.id)}')" class="text-rose-500 hover:text-rose-700 p-1" title="Hapus baris">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function deleteAttendanceLog(id) {
+      if (!state.adminUnlocked) return;
+      state.attendanceLogs = state.attendanceLogs.filter(l => l.id !== id);
+      saveDatabaseToStorage();
+      renderAttendanceTable();
+    }
+
+    function clearAttendanceLogs() {
+      if (!state.adminUnlocked) return;
+      state.attendanceLogs = [];
+      saveDatabaseToStorage();
+      renderAttendanceTable();
+      showToast('Seluruh riwayat kehadiran studio telah dibersihkan.', 'info');
+    }
+
+    function exportAttendanceExcel() {
+      if (!state.adminUnlocked) {
+        openPinModal('attendance');
+        return;
+      }
+      if (state.attendanceLogs.length === 0) {
+        showToast('Belum ada data kehadiran untuk diekspor.', 'error');
+        return;
+      }
+      const rows = state.attendanceLogs.map((l, idx) => ({
+        No: idx + 1,
+        'Waktu Check-In': l.timestamp,
+        'Nomor Kartu': l.cardNumber,
+        'Nama Member': l.name,
+        'Paket Member': l.category,
+        'No. WhatsApp': l.phone,
+        'Keperluan Kunjungan': l.purpose
+      }));
+      if (typeof XLSX !== 'undefined') {
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Kehadiran Studio');
+        XLSX.writeFile(wb, `Kehadiran_FaridStudio_${new Date().toISOString().slice(0, 10)}.xlsx`);
+        showToast('File Excel kehadiran studio berhasil diunduh.', 'success');
+      }
+    }
+
+    async function toggleCameraScanner() {
+      const wrapper = document.getElementById('camera-scanner-wrapper');
+      const video = document.getElementById('attendance-video');
+      const btn = document.getElementById('btn-camera-scan');
+      if (!wrapper || !video || !btn) return;
+
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach(t => t.stop());
+        state.cameraStream = null;
+        if (state.cameraScanTimer) clearInterval(state.cameraScanTimer);
+        wrapper.classList.add('hidden');
+        btn.innerHTML = '<i class="fa-solid fa-camera mr-1"></i> Buka Kamera Scan';
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        state.cameraStream = stream;
+        video.srcObject = stream;
+        await video.play();
+        wrapper.classList.remove('hidden');
+        btn.innerHTML = '<i class="fa-solid fa-stop mr-1"></i> Tutup Kamera';
+
+        const scanCanvas = document.createElement('canvas');
+        const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+        let lastDetected = '';
+        let lastTime = 0;
+
+        state.cameraScanTimer = setInterval(() => {
+          if (!state.cameraStream || video.readyState < 2 || !video.videoWidth) return;
+          try {
+            scanCanvas.width = video.videoWidth;
+            scanCanvas.height = video.videoHeight;
+            scanCtx.drawImage(video, 0, 0, scanCanvas.width, scanCanvas.height);
+            if (typeof jsQR !== 'undefined') {
+              const imgData = scanCtx.getImageData(0, 0, scanCanvas.width, scanCanvas.height);
+              const code = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'dontInvert' });
+              if (code && code.data) {
+                const now = Date.now();
+                if (code.data !== lastDetected || now - lastTime > 3500) {
+                  lastDetected = code.data;
+                  lastTime = now;
+                  processAttendanceCheckIn(code.data);
+                }
+              }
+            }
+          } catch (e) {}
+        }, 350);
+      } catch (err) {
+        showToast('Tidak dapat mengakses kamera perangkat. Pastikan izin kamera diaktifkan.', 'error');
+      }
+    }
+
+    ['mousemove', 'keydown', 'click', 'touchstart'].forEach(evt => {
+      document.addEventListener(evt, resetAdminIdleTimer, { passive: true });
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && state.adminUnlocked && state.autoLockOnBlur) {
+        lockAdminSession('Otomatis terkunci karena berpindah tab/aplikasi');
+      }
+    });
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      await loadDatabaseFromStorage();
+      const blurChk = document.getElementById('chk-autolock-blur');
+      if (blurChk) blurChk.checked = state.autoLockOnBlur;
+      syncAdminLockStates();
+      initMassQrBox();
+      loadDesignControlsFromState();
+
+      const params = new URLSearchParams(window.location.search);
+      const prefillCard = params.get('kartu');
+      const isAutoQr = params.get('auto') === '1';
+      if (prefillCard || isAutoQr || window.location.hash === '#daftar') {
+        switchTab('register');
+        if (prefillCard) {
+          applyScannedRegistrationQr(`?kartu=${prefillCard}`);
+        } else {
+          renderInitialRegCardPreview();
+          showToast('QR Daftar Otomatis aktif! Silakan masukkan Nomor Seri Kartu Anda.', 'success');
+          document.getElementById('reg-card-number')?.focus();
+        }
+      } else {
+        renderInitialRegCardPreview();
+      }
+    });
+  </script>
+</body>
+</html>
