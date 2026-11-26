@@ -1,0 +1,10 @@
+{
+  "name": "Farid Studio Multimedia — Sistem Kartu Member, QR Massal & Presensi",
+  "description": "Sistem keanggotaan CR80 300 DPI, aktivasi 1 QR massal, portal cek kartu member, spreadsheet Excel admin, dan presensi studio.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
